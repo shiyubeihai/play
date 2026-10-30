@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F2EFE8">
+<title>舒尔特方格 5×5</title>
+<style>
+:root{
+  --bg:#F2EFE8;
+  --cell:#FFFFFF;
+  --cell-done:#EAE5DB;
+  --ink:#33302B;
+  --ink-soft:#4A453C;
+  --ink-faint:#BDB6A7;
+  --ink-hint:#6F6858;
+  --accent:#2F6B4F;
+  --accent-soft:#E4EDE7;
+  --wrong:#E0CFC9;
+  --line:#DED8CC;
+  --gap:8px;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;}
+
+body{
+  background:var(--bg);
+  color:var(--ink-soft);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-user-select:none;
+  user-select:none;
+  touch-action:manipulation;
+  overflow:hidden;
+}
+
+.app{
+  height:100dvh;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:max(14px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));
+}
+
+/* ---------- 模式切换 ---------- */
+.modes{
+  display:flex;
+  gap:8px;
+  justify-content:center;
+  flex:0 0 auto;
+}
+.modes button{
+  padding:7px 18px;
+  font-size:14px;
+  font-family:inherit;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--ink-soft);
+  cursor:pointer;
+  transition:background-color .18s,color .18s,border-color .18s;
+}
+.modes button.active{
+  background:var(--cell);
+  color:var(--accent);
+  border-color:var(--accent);
+  font-weight:600;
+}
+
+/* ---------- 状态栏 ---------- */
+.hud{
+  flex:0 0 auto;
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  padding:0 4px;
+}
+.target{
+  font-size:15px;
+  color:var(--ink-hint);
+}
+.target b{
+  font-size:23px;
+  color:var(--accent);
+  font-variant-numeric:tabular-nums;
+  margin-left:2px;
+}
+.clock{
+  font-size:27px;
+  font-weight:600;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.4px;
+  transition:color .3s;
+}
+.clock.urgent{color:#A6553F;}
+
+/* ---------- 棋盘 ---------- */
+.board-wrap{
+  flex:1 1 auto;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.board{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  grid-template-rows:repeat(5,1fr);
+  gap:var(--gap);
+}
+.cell{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--cell);
+  border-radius:10px;
+  font-size:var(--cell-font,28px);
+  font-weight:500;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+  box-shadow:0 1px 2px rgba(60,50,30,.05);
+  transition:background-color .2s ease,color .2s ease;
+  cursor:pointer;
+}
+.cell.hidden{color:transparent;}
+.cell.hidden::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--ink-faint);
+}
+.cell.done{
+  background:var(--cell-done);
+  color:transparent;
+  box-shadow:none;
+}
+.cell.done::before{display:none;}
+.cell.wrong{
+  background:var(--wrong);
+  transition:none;
+}
+
+/* ---------- 底部 ---------- */
+.foot{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:0 4px;
+}
+.hint{
+  flex:1 1 auto;
+  min-width:0;
+  font-size:13px;
+  color:var(--ink-hint);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.btns{
+  flex:0 0 auto;
+  display:flex;
+  gap:6px;
+}
+.btn-ghost{
+  padding:8px 13px;
+  font-size:13px;
+  font-family:inherit;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:transparent;
+  color:var(--ink-soft);
+  cursor:pointer;
+  transition:color .18s,border-color .18s,background-color .18s;
+}
+.btn-ghost.on{
+  color:var(--accent);
+  border-color:var(--accent);
+  background:var(--accent-soft);
+}
+
+/* ---------- 结果层 ---------- */
+.overlay{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(242,239,232,.88);
+  z-index:10;
+  padding:24px;
+}
+.overlay[hidden]{display:none;}
+.panel{
+  background:var(--cell);
+  border-radius:18px;
+  padding:28px 34px 24px;
+  text-align:center;
+  box-shadow:0 10px 34px rgba(60,50,30,.09);
+  min-width:230px;
+  max-height:86dvh;
+  overflow-y:auto;
+}
+.panel .title{
+  font-size:14px;
+  color:var(--ink-hint);
+  letter-spacing:.5px;
+}
+.panel .value{
+  font-size:44px;
+  font-weight:600;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+  margin:8px 0 6px;
+  line-height:1.1;
+}
+.panel .sub{
+  font-size:13px;
+  color:var(--ink-hint);
+  min-height:18px;
+  font-variant-numeric:tabular-nums;
+}
+.panel .btn{
+  margin-top:20px;
+  padding:12px 34px;
+  font-size:16px;
+  font-family:inherit;
+  font-weight:500;
+  border:none;
+  border-radius:999px;
+  background:var(--accent);
+  color:#fff;
+  cursor:pointer;
+}
+
+/* ---------- 记录面板 ---------- */
+.record-panel{
+  min-width:264px;
+  text-align:left;
+}
+.record-panel .title{
+  text-align:center;
+  margin-bottom:20px;
+}
+.section-label{
+  font-size:12px;
+  color:var(--ink-hint);
+  letter-spacing:.5px;
+  margin:0 0 8px;
+}
+.top-list{
+  list-style:none;
+  margin:0 0 20px;
+  padding:0;
+}
+.top-list li{
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+  padding:6px 0;
+  font-variant-numeric:tabular-nums;
+}
+.top-list li + li{border-top:1px solid #F0ECE3;}
+.top-list .rank{
+  font-size:12px;
+  color:var(--ink-hint);
+  width:16px;
+  flex:0 0 auto;
+}
+.top-list .t{
+  font-size:19px;
+  font-weight:600;
+  color:var(--ink);
+}
+.top-list li:first-child .t{color:var(--accent);}
+.recent{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-bottom:22px;
+  font-variant-numeric:tabular-nums;
+}
+.recent span{
+  background:var(--bg);
+  border-radius:8px;
+  padding:6px 10px;
+  font-size:14px;
+  color:var(--ink-soft);
+}
+.recent span:first-child{
+  background:var(--accent-soft);
+  color:var(--accent);
+}
+.empty{
+  font-size:13px;
+  color:var(--ink-hint);
+  margin:0 0 20px;
+}
+.record-panel .btn{
+  display:block;
+  width:100%;
+  margin-top:0;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="modes">
+    <button data-mode="free" class="active">正计时</button>
+    <button data-mode="timed">限时 60 秒</button>
+  </div>
+
+  <div class="hud">
+    <div class="target">下一个<b id="target">1</b></div>
+    <div class="clock" id="clock">0.0s</div>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="foot">
+    <div class="hint" id="hint">点击任意格子开始</div>
+    <div class="btns">
+      <button class="btn-ghost" id="openRecord">记录</button>
+      <button class="btn-ghost" id="restart">重开</button>
+      <button class="btn-ghost on" id="soundBtn">声音</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结果 -->
+<div class="overlay" id="overlay" hidden>
+  <div class="panel">
+    <div class="title" id="resultTitle"></div>
+    <div class="value" id="resultValue"></div>
+    <div class="sub" id="resultSub"></div>
+    <button class="btn" id="again">再来一次</button>
+  </div>
+</div>
+
+<!-- 记录 -->
+<div class="overlay" id="recordOverlay" hidden>
+  <div class="panel record-panel">
+    <div class="title" id="recTitle">正计时 · 记录</div>
+
+    <div class="section-label">最快三次</div>
+    <ol class="top-list" id="topList"></ol>
+
+    <div class="section-label">最近五次</div>
+    <div class="recent" id="recentList"></div>
+
+    <button class="btn" id="closeRecord">关闭</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SIZE = 5;
+  var TOTAL = SIZE * SIZE;
+  var GAP = 8;
+  var LIMIT_MS = 60000;
+  var KEY_V2 = 'schulte5x5.records.v2';
+  var KEY_V1 = 'schulte5x5.best.v1';
+  var TOP_KEEP = 3;
+  var RUNS_KEEP = 10;
+  var RUNS_SHOW = 5;
+
+  var board    = document.getElementById('board');
+  var wrap     = document.querySelector('.board-wrap');
+  var targetEl = document.getElementById('target');
+  var clockEl  = document.getElementById('clock');
+  var hintEl   = document.getElementById('hint');
+  var overlay  = document.getElementById('overlay');
+  var rTitle   = document.getElementById('resultTitle');
+  var rValue   = document.getElementById('resultValue');
+  var rSub     = document.getElementById('resultSub');
+  var againBtn = document.getElementById('again');
+  var restartBtn = document.getElementById('restart');
+  var recordOverlay = document.getElementById('recordOverlay');
+  var openRecordBtn = document.getElementById('openRecord');
+  var closeRecordBtn = document.getElementById('closeRecord');
+  var recTitle = document.getElementById('recTitle');
+  var topList  = document.getElementById('topList');
+  var recentList = document.getElementById('recentList');
+  var soundBtn = document.getElementById('soundBtn');
+  var modeBtns = Array.prototype.slice.call(document.querySelectorAll('.modes button'));
+
+  /* ---------- 状态 ---------- */
+  var S = {
+    mode: 'free',
+    phase: 'idle',
+    next: 1,
+    startAt: 0,
+    pausedAt: 0,
+    raf: null,
+    lastSec: -1,
+    clockText: '',
+    data: null
+  };
+
+  var cellEls = [];
+
+  /* ---------- 音效 ---------- */
+  var audio = {
+    ctx: null,
+    buffer: null,
+
+    init: function () {
+      if (this.ctx) return;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      try {
+        this.ctx = new AC();
+        var len = Math.floor(this.ctx.sampleRate * 0.035);
+        var buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        var d = buf.getChannelData(0);
+        for (var i = 0; i < len; i++) {
+          d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 8);
+        }
+        this.buffer = buf;
+      } catch (e) {
+        this.ctx = null;
+      }
+    },
+
+    resume: function () {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        try { this.ctx.resume(); } catch (e) {}
+      }
+    },
+
+    beep: function () {
+      if (!S.data || !S.data.sound) return;
+      if (!this.ctx || !this.buffer) return;
+      if (this.ctx.state !== 'running') return;
+      try {
+        var src = this.ctx.createBufferSource();
+        src.buffer = this.buffer;
+
+        var hp = this.ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 1300;
+
+        var g = this.ctx.createGain();
+        g.gain.value = 0.09;
+
+        src.connect(hp);
+        hp.connect(g);
+        g.connect(this.ctx.destination);
+
+        /* 播完立刻断开，避免长时间游戏累积音频节点 */
+        src.onended = function () {
+          try {
+            src.disconnect();
+            hp.disconnect();
+            g.disconnect();
+          } catch (e) {}
+        };
+
+        src.start();
+      } catch (e) {}
+    }
+  };
+
+  /* ---------- 存档 ---------- */
+  function isPosNum(v) {
+    return typeof v === 'number' && isFinite(v) && v > 0;
+  }
+
+  function emptyMode() {
+    return { runs: [], top: [] };
+  }
+
+  function emptyData() {
+    return {
+      version: 2,
+      sound: true,
+      free: emptyMode(),
+      timed: emptyMode()
+    };
+  }
+
+  function normalizeMode(v) {
+    var out = emptyMode();
+    if (!v || typeof v !== 'object') return out;
+
+    if (Array.isArray(v.runs)) {
+      out.runs = v.runs.filter(isPosNum).slice(0, RUNS_KEEP);
+    }
+    if (Array.isArray(v.top)) {
+      out.top = v.top.filter(isPosNum).sort(function (a, b) { return a - b; }).slice(0, TOP_KEEP);
+    }
+    return out;
+  }
+
+  function normalizeData(raw) {
+    var out = emptyData();
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+
+    if (typeof raw.sound === 'boolean') out.sound = raw.sound;
+
+    ['free', 'timed'].forEach(function (k) {
+      var v = raw[k];
+      if (isPosNum(v)) {
+        /* v1 旧格式：一个数字 */
+        out[k].runs = [v];
+        out[k].top = [v];
+      } else if (v && typeof v === 'object') {
+        out[k] = normalizeMode(v);
+      }
+    });
+
+    return out;
+  }
+
+  function saveData() {
+    try {
+      localStorage.setItem(KEY_V2, JSON.stringify(S.data));
+    } catch (e) {}
+  }
+
+  function loadData() {
+    var raw = null;
+    try {
+      var s = localStorage.getItem(KEY_V2);
+      if (s) raw = JSON.parse(s);
+    } catch (e) { raw = null; }
+
+    if (!raw) {
+      /* 尝试迁移 v1 */
+      try {
+        var old = localStorage.getItem(KEY_V1);
+        if (old) raw = JSON.parse(old);
+      } catch (e) { raw = null; }
+    }
+
+    return normalizeData(raw);
+  }
+
+  /* ---------- 计时 ---------- */
+  function fmt(ms) {
+    return (Math.max(0, ms) / 1000).toFixed(1) + 's';
+  }
+
+  function setClock(t) {
+    if (t === S.clockText) return;
+    S.clockText = t;
+    clockEl.textContent = t;
+  }
+
+  function elapsedMs() {
+    return performance.now() - S.startAt;
+  }
+
+  function stopTimer() {
+    if (S.raf !== null) {
+      cancelAnimationFrame(S.raf);
+      S.raf = null;
+    }
+  }
+
+  function startTimer() {
+    stopTimer();
+    loop();
+  }
+
+  function loop() {
+    if (S.phase !== 'playing') return;
+    tick();
+    if (S.phase !== 'playing') return;
+    S.raf = requestAnimationFrame(loop);
+  }
+
+  function tick() {
+    var el = elapsedMs();
+
+    if (S.mode === 'free') {
+      setClock(fmt(el));
+    } else {
+      var left = LIMIT_MS - el;
+      setClock(fmt(left));
+      clockEl.classList.toggle('urgent', left <= 10000 && left > 0);
+      if (left <= 0) {
+        setClock(fmt(0));
+        finish(false);
+        return;
+      }
+    }
+
+    /* 整秒滴答 */
+    var sec = Math.floor(el / 1000);
+    if (sec !== S.lastSec) {
+      S.lastSec = sec;
+      audio.beep();
+    }
+  }
+
+  /* ---------- 布局 ---------- */
+  function layout() {
+    var w = wrap.clientWidth;
+    var h = wrap.clientHeight;
+    if (w <= 0 || h <= 0) return;
+
+    var size = Math.min(w, h);
+    board.style.width  = size + 'px';
+    board.style.height = size + 'px';
+
+    var cellW = (size - GAP * (SIZE - 1)) / SIZE;
+    board.style.setProperty('--cell-font', Math.round(cellW * 0.46) + 'px');
+  }
+
+  /* ---------- 棋盘 ---------- */
+  function shuffled() {
+    var a = [], i, j, t;
+    for (i = 1; i <= TOTAL; i++) a.push(i);
+    for (i = a.length - 1; i > 0; i--) {
+      j = Math.floor(Math.random() * (i + 1));
+      t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function build() {
+    var nums = shuffled();
+    board.innerHTML = '';
+    cellEls = [];
+
+    for (var i = 0; i < nums.length; i++) {
+      var d = document.createElement('div');
+      d.className = 'cell hidden';
+      d.dataset.n = String(nums[i]);
+      d.textContent = String(nums[i]);
+      board.appendChild(d);
+      cellEls.push(d);
+    }
+
+    layout();
+  }
+
+  /* ---------- 界面同步 ---------- */
+  function syncHint() {
+    if (S.phase === 'idle') {
+      hintEl.textContent = '点击任意格子开始';
+      return;
+    }
+    var top = S.data[S.mode].top;
+    hintEl.textContent = top.length ? '最佳 ' + fmt(top[0]) : '按顺序点击';
+  }
+
+  function syncHud() {
+    targetEl.textContent = S.next > TOTAL ? '—' : String(S.next);
+  }
+
+  function syncSoundBtn() {
+    soundBtn.classList.toggle('on', !!S.data.sound);
+    soundBtn.textContent = S.data.sound ? '声音' : '静音';
+  }
+
+  /* ---------- 记录 ---------- */
+  function record(mode, ms) {
+    var m = S.data[mode];
+    var prevBest = m.top.length ? m.top[0] : Infinity;
+    var isRecord = ms < prevBest;
+
+    m.runs.unshift(ms);
+    if (m.runs.length > RUNS_KEEP) m.runs.length = RUNS_KEEP;
+
+    m.top.push(ms);
+    m.top.sort(function (a, b) { return a - b; });
+    if (m.top.length > TOP_KEEP) m.top.length = TOP_KEEP;
+
+    saveData();
+    return isRecord;
+  }
+
+  function renderRecord() {
+    var m = S.data[S.mode];
+    recTitle.textContent = (S.mode === 'free' ? '正计时' : '限时 60 秒') + ' · 记录';
+
+    topList.innerHTML = '';
+    if (!m.top.length) {
+      var p = document.createElement('p');
+      p.className = 'empty';
+      p.textContent = '还没有成绩';
+      topList.appendChild(p);
+    } else {
+      m.top.forEach(function (ms, i) {
+        var li = document.createElement('li');
+        var r = document.createElement('span');
+        r.className = 'rank';
+        r.textContent = String(i + 1);
+        var t = document.createElement('span');
+        t.className = 't';
+        t.textContent = fmt(ms);
+        li.appendChild(r);
+        li.appendChild(t);
+        topList.appendChild(li);
+      });
+    }
+
+    recentList.innerHTML = '';
+    if (!m.runs.length) {
+      var q = document.createElement('p');
+      q.className = 'empty';
+      q.textContent = '还没有成绩';
+      recentList.appendChild(q);
+    } else {
+      m.runs.slice(0, RUNS_SHOW).forEach(function (ms) {
+        var s = document.createElement('span');
+        s.textContent = fmt(ms);
+        recentList.appendChild(s);
+      });
+    }
+  }
+
+  /* ---------- 局面控制 ---------- */
+  function reset() {
+    stopTimer();
+    S.phase = 'idle';
+    S.next = 1;
+    S.pausedAt = 0;
+    S.startAt = 0;
+    S.lastSec = -1;
+
+    overlay.hidden = true;
+    clockEl.classList.remove('urgent');
+    setClock(S.mode === 'free' ? fmt(0) : fmt(LIMIT_MS));
+
+    build();
+    syncHud();
+    syncHint();
+  }
+
+  function start() {
+    /* 必须在用户手势中创建音频上下文 */
+    audio.init();
+    audio.resume();
+
+    S.phase = 'playing';
+    S.next = 1;
+    S.startAt = performance.now();
+    S.pausedAt = 0;
+    S.lastSec = -1;
+    S.clockText = '';
+
+    for (var i = 0; i < cellEls.length; i++) {
+      cellEls[i].classList.remove('hidden', 'done', 'wrong');
+    }
+
+    clockEl.classList.remove('urgent');
+    syncHud();
+    syncHint();
+    startTimer();
+  }
+
+  function wrongFeedback(el) {
+    el.classList.remove('wrong');
+    void el.offsetWidth;
+    el.classList.add('wrong');
+    setTimeout(function () {
+      el.classList.remove('wrong');
+    }, 180);
+  }
+
+  function finish(win) {
+    if (S.phase !== 'playing') return;
+
+    stopTimer();
+
+    var used = Math.min(elapsedMs(), LIMIT_MS);
+    S.phase = win ? 'won' : 'lost';
+    clockEl.classList.remove('urgent');
+
+    if (win) {
+      setClock(S.mode === 'free' ? fmt(used) : fmt(LIMIT_MS - used));
+    } else {
+      setClock(fmt(0));
+    }
+
+    var isRecord = false;
+    if (win) isRecord = record(S.mode, used);
+
+    if (win) {
+      rTitle.textContent = S.mode === 'free' ? '完成' : '过关';
+      rValue.textContent = fmt(used);
+      rSub.textContent = isRecord ? '新纪录' : '最快 ' + fmt(S.data[S.mode].top[0]);
+    } else {
+      rTitle.textContent = '时间到';
+      rValue.textContent = '差 ' + (TOTAL - S.next + 1) + ' 个';
+      rSub.textContent = '已过 ' + (S.next - 1) + ' / ' + TOTAL;
+    }
+
+    overlay.hidden = false;
+    syncHint();
+  }
+
+  /* ---------- 输入 ---------- */
+  function handleTap(el) {
+    if (S.phase === 'idle') {
+      start();
+      return;
+    }
+    if (S.phase !== 'playing') return;
+
+    var n = Number(el.dataset.n);
+    if (n === S.next) {
+      el.classList.remove('hidden');
+      el.classList.add('done');
+      S.next++;
+      syncHud();
+      if (S.next > TOTAL) finish(true);
+    } else {
+      wrongFeedback(el);
+    }
+  }
+
+  var activePointer = null;
+
+  board.addEventListener('pointerdown', function (e) {
+    var el = e.target.closest ? e.target.closest('.cell') : null;
+    if (!el) return;
+
+    e.preventDefault();
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+    if (activePointer !== null && activePointer !== e.pointerId) return;
+    activePointer = e.pointerId;
+
+    handleTap(el);
+  }, { passive: false });
+
+  document.addEventListener('pointerup', function (e) {
+    if (activePointer === e.pointerId) activePointer = null;
+  });
+  document.addEventListener('pointercancel', function (e) {
+    if (activePointer === e.pointerId) activePointer = null;
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (S.phase !== 'playing') return;
+
+    if (document.hidden) {
+      S.pausedAt = performance.now();
+      stopTimer();
+    } else if (S.pausedAt) {
+      S.startAt += performance.now() - S.pausedAt;
+      S.pausedAt = 0;
+      S.lastSec = -1;
+      startTimer();
+    }
+  });
+
+  /* ---------- 按钮 ---------- */
+  modeBtns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var m = b.dataset.mode;
+      if (S.mode === m && S.phase === 'idle') return;
+      S.mode = m;
+      modeBtns.forEach(function (x) {
+        x.classList.toggle('active', x === b);
+      });
+      reset();
+    });
+  });
+
+  restartBtn.addEventListener('click', reset);
+  againBtn.addEventListener('click', reset);
+
+  openRecordBtn.addEventListener('click', function () {
+    renderRecord();
+    recordOverlay.hidden = false;
+  });
+
+  closeRecordBtn.addEventListener('click', function () {
+    recordOverlay.hidden = true;
+  });
+
+  recordOverlay.addEventListener('click', function (e) {
+    if (e.target === recordOverlay) recordOverlay.hidden = true;
+  });
+
+  soundBtn.addEventListener('click', function () {
+    S.data.sound = !S.data.sound;
+    if (S.data.sound) {
+      audio.init();
+      audio.resume();
+    }
+    syncSoundBtn();
+    saveData();
+  });
+
+  /* ---------- 启动 ---------- */
+  S.data = loadData();
+  syncSoundBtn();
+  reset();
+
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(layout).observe(wrap);
+  }
+  window.addEventListener('resize', layout);
+  window.addEventListener('orientationchange', function () {
+    setTimeout(layout, 120);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>数字序列记忆</title>
+<style>
+  :root{
+    --bg:#0e1220; --panel:#171d31; --line:#28304a; --sunk:#0b0f1c;
+    --text:#e8ecf7; --dim:#8b95b3; --accent:#5ee0b0; --warn:#ff7a8a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0;min-height:100vh;padding:16px;display:flex;justify-content:center;
+    background:radial-gradient(120% 90% at 50% 0%,#1b2544 0%,var(--bg) 62%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  }
+  .app{width:100%;max-width:430px;display:flex;flex-direction:column;gap:12px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.5px}
+  h1 small{display:block;font-size:11px;font-weight:400;color:var(--dim);letter-spacing:0;margin-top:2px}
+  button{font:inherit;color:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+  #btnRestart{padding:8px 15px;font-size:13px;color:var(--dim);transition:.15s}
+  #btnRestart:hover{color:var(--text);border-color:#3b476b}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 4px;text-align:center}
+  .stat b{display:block;font-size:16px;font-variant-numeric:tabular-nums}
+  .stat span{display:block;font-size:10px;color:var(--dim);margin-top:3px}
+  .stat.span2{grid-column:span 2}
+  #v-lives{color:var(--warn);letter-spacing:1px}
+
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+  .display{
+    width:100%;height:110px;border-radius:12px;background:var(--sunk);
+    display:flex;align-items:center;justify-content:center;gap:.16em;
+    font-size:72px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--accent);
+    transition:color .1s;
+  }
+  .display.blank{color:#2a3350}
+  .display.seq{color:var(--accent)}
+  .display.seq.bad{color:var(--warn)}
+  .status{font-size:13px;color:var(--dim);min-height:18px;text-align:center}
+  .dots{display:flex;gap:6px;height:8px}
+  .dots i{display:block;width:8px;height:8px;border-radius:50%;background:#2c3450}
+  .dots i.done{background:var(--accent)}
+
+  .keypad{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .key{aspect-ratio:1;font-size:22px;font-weight:600;border-radius:14px;transition:transform .08s,background .12s}
+  .key:active{transform:scale(.93);background:#222b47}
+  .keypad.locked{opacity:.4;pointer-events:none}
+
+  .overlay{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,11,20,.8);backdrop-filter:blur(6px)}
+  .overlay.hidden{display:none}
+  .card{width:100%;max-width:340px;padding:22px;border-radius:18px;background:var(--panel);border:1px solid var(--line);text-align:center}
+  .card h2{margin:0 0 14px;font-size:18px;font-weight:600}
+  .lead{margin:0 0 18px;font-size:13px;line-height:1.9;color:var(--dim)}
+  .primary{width:100%;padding:12px;font-size:15px;font-weight:700;color:#06231a;background:var(--accent);border:none;border-radius:12px}
+  .sum{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px;text-align:left}
+  .sum div{padding:8px 10px;border-radius:10px;background:var(--sunk)}
+  .sum span{display:block;font-size:10px;color:var(--dim)}
+  .sum b{font-size:16px;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>数字序列记忆<small>看一眼整串数字，再原样点回来</small></h1>
+    <button id="btnRestart" type="button">重开</button>
+  </header>
+
+  <section class="stats">
+    <div class="stat"><b id="v-score">0</b><span>分数</span></div>
+    <div class="stat"><b id="v-best">0</b><span>最高分</span></div>
+    <div class="stat"><b id="v-streak">0</b><span>连胜</span></div>
+    <div class="stat"><b id="v-beststreak">0</b><span>最高连胜</span></div>
+    <div class="stat span2"><b id="v-round">—</b><span>轮次</span></div>
+    <div class="stat"><b id="v-lives">♥♥♥</b><span>生命</span></div>
+    <div class="stat"><b id="v-len">3</b><span>序列长度</span></div>
+  </section>
+
+  <section class="stage">
+    <div id="display" class="display blank">·</div>
+    <div id="status" class="status"></div>
+    <div id="dots" class="dots"></div>
+  </section>
+
+  <section id="keypad" class="keypad locked"></section>
+</div>
+
+<div id="overlay" class="overlay">
+  <div class="card">
+    <h2 id="ov-title"></h2>
+    <div id="ov-body"></div>
+    <button id="ov-btn" class="primary" type="button"></button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   0. 常量 / 状态
+   ============================================================ */
+const CFG = {
+  START_LIVES: 3,
+  START_LEN: 3,
+  MAX_LEN: 10,
+  MAX_ROUNDS: 100,
+  FLASH_MS: 1500,     // 整串数字亮起的时长
+  GAP_MS: 200,        // 熄灭到可以输入的间隔
+  PREP_MS: 450,       // 开播前的准备时间
+  NEXT_MS: 900,       // 答对后停留多久进入下一轮
+  REVEAL_MS: 1600,    // 答错后展示正确序列多久
+  STREAK_STEP: 0.1,
+  STREAK_CAP: 5,
+  LEN10_BONUS: 50,
+  BEEP_FREQ: 880,     // 方波“滴”的音高
+  BEEP_DUR: 0.07,     // 单次时长（秒）
+  BEEP_GAIN: 0.06,    // 音量（0–1，方波很扎耳，别调高）
+  STORAGE_KEY: 'numseq.memory.v1',
+};
+
+const ST = { IDLE: 'idle', PLAYING: 'playing', INPUT: 'input', RESULT: 'result', OVER: 'over' };
+
+// 本局可变状态（刷新即重置）
+const G = {
+  state: ST.IDLE,
+  lives: CFG.START_LIVES,
+  round: 0,
+  length: CFG.START_LEN,
+  score: 0,
+  streak: 0,
+  bestStreakRun: 0,
+  correctRounds: 0,
+  reachedMax: false,   // 是否已进入“随机长度模式”
+  seq: [],
+  cursor: 0,
+  runId: 0,            // 阶段令牌：自增后旧回调全部失效
+};
+
+// 跨局记录（写 localStorage）
+const R = { bestScore: 0, bestStreak: 0, bestRound: 0 };
+
+const $ = (id) => document.getElementById(id);
+
+/* ============================================================
+   1. 音效模块（WebAudio 方波，无外部资源）
+   ============================================================ */
+let audioCtx = null;
+const liveOsc = new Set();
+
+function ensureAudio() {
+  try {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  } catch (err) {
+    return null;                 // 浏览器不支持或用户禁用了声音
+  }
+}
+
+function beep(freq, dur) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+
+  const t0 = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(freq, t0);
+
+  // 8ms 淡入 + 指数淡出，避免波形断裂的“咔哒”声
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(CFG.BEEP_GAIN, t0 + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+
+  liveOsc.add(osc);
+  osc.onended = () => {
+    liveOsc.delete(osc);
+    gain.disconnect();
+  };
+}
+
+function silenceAll() {
+  liveOsc.forEach((osc) => {
+    try { osc.stop(); } catch (err) { /* 已经停了 */ }
+  });
+  liveOsc.clear();
+}
+
+/* ============================================================
+   2. 存档模块
+   ============================================================ */
+function safeInt(value, min, max) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return min;
+  return Math.min(max, Math.max(min, Math.floor(n)));
+}
+
+function loadRecords() {
+  try {
+    const raw = localStorage.getItem(CFG.STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return;
+    R.bestScore  = safeInt(data.bestScore, 0, 1e9);
+    R.bestStreak = safeInt(data.bestStreak, 0, 1e6);
+    R.bestRound  = safeInt(data.bestRound, 0, CFG.MAX_ROUNDS);
+  } catch (err) {
+    /* 存档损坏或 localStorage 不可用：用默认值继续 */
+  }
+}
+
+function saveRecords() {
+  try {
+    localStorage.setItem(CFG.STORAGE_KEY, JSON.stringify({
+      bestScore: R.bestScore,
+      bestStreak: R.bestStreak,
+      bestRound: R.bestRound,
+    }));
+  } catch (err) {
+    /* 隐私模式 / 配额已满：静默失败，不影响游戏 */
+  }
+}
+
+function updateRecords() {
+  let dirty = false;
+  if (G.score  > R.bestScore)  { R.bestScore  = G.score;  dirty = true; }
+  if (G.streak > R.bestStreak) { R.bestStreak = G.streak; dirty = true; }
+  if (G.round  > R.bestRound)  { R.bestRound  = G.round;  dirty = true; }
+  if (dirty) saveRecords();
+}
+
+/* ============================================================
+   3. 定时器管理（统一登记，重开时一次清空）
+   ============================================================ */
+const timers = new Set();
+
+function later(fn, ms) {
+  const id = setTimeout(() => {
+    timers.delete(id);
+    fn();
+  }, ms);
+  timers.add(id);
+  return id;
+}
+
+function clearTimers() {
+  timers.forEach((id) => clearTimeout(id));
+  timers.clear();
+}
+
+/* ============================================================
+   4. 渲染模块
+   ============================================================ */
+function render() {
+  $('v-score').textContent = G.score;
+  $('v-best').textContent = Math.max(R.bestScore, G.score);
+  $('v-streak').textContent = G.streak;
+  $('v-beststreak').textContent = Math.max(R.bestStreak, G.streak);
+  $('v-round').textContent = G.round === 0 ? '—' : G.round + ' / ' + CFG.MAX_ROUNDS;
+  $('v-len').textContent = G.length;
+  $('v-lives').textContent =
+    '♥'.repeat(Math.max(0, G.lives)) + '♡'.repeat(Math.max(0, CFG.START_LIVES - G.lives));
+
+  $('keypad').classList.toggle('locked', G.state !== ST.INPUT);
+
+  const dots = $('dots');
+  dots.innerHTML = '';
+  if (G.state === ST.INPUT) {
+    for (let i = 0; i < G.seq.length; i++) {
+      const dot = document.createElement('i');
+      if (i < G.cursor) dot.className = 'done';
+      dots.appendChild(dot);
+    }
+  }
+}
+
+function showDisplay(text, mode) {
+  const el = $('display');
+  el.textContent = text;
+  el.className = 'display' + (mode ? ' ' + mode : '');
+  el.style.fontSize = '';
+}
+
+function flashSize(len) {
+  if (len <= 4) return 66;
+  if (len <= 6) return 54;
+  if (len <= 8) return 44;
+  return 36;
+}
+
+function showSequence(digits, bad) {
+  const el = $('display');
+  el.textContent = '';
+  el.className = 'display seq' + (bad ? ' bad' : '');
+  el.style.fontSize = flashSize(digits.length) + 'px';
+  digits.forEach((d) => {
+    const span = document.createElement('span');
+    span.textContent = String(d);
+    el.appendChild(span);
+  });
+}
+
+function say(text) {
+  $('status').textContent = text;
+}
+
+/* ============================================================
+   5. 播放模块：整串同时亮起 → 一声“滴” → 熄灭 → 等输入
+   ============================================================ */
+function makeSequence(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(Math.floor(Math.random() * 10));
+  return out;
+}
+
+function startRound() {
+  clearTimers();
+  silenceAll();
+  const run = ++G.runId;
+
+  G.round += 1;
+  G.cursor = 0;
+  G.seq = makeSequence(G.length);
+  G.state = ST.PLAYING;
+  updateRecords();
+
+  showDisplay('·', 'blank');
+  say('整串闪一下 · 记住这 ' + G.length + ' 个数字');
+  render();
+
+  later(() => {
+    if (run !== G.runId) return;
+
+    showSequence(G.seq, false);
+    beep(CFG.BEEP_FREQ, CFG.BEEP_DUR);
+
+    later(() => {
+      if (run !== G.runId) return;
+      showDisplay('·', 'blank');
+      later(() => {
+        if (run !== G.runId) return;
+        enterInput();
+      }, CFG.GAP_MS);
+    }, CFG.FLASH_MS);
+  }, CFG.PREP_MS);
+}
+
+function enterInput() {
+  G.state = ST.INPUT;
+  G.cursor = 0;
+  say('轮到你了 · 按顺序点击 ' + G.length + ' 个数字');
+  showDisplay('·', 'blank');
+  render();
+}
+
+/* ============================================================
+   6. 输入模块
+   ============================================================ */
+function press(digit) {
+  if (G.state !== ST.INPUT) return;
+  ensureAudio();                       // 顺带解锁音频（第一次点击手势）
+
+  if (digit === G.seq[G.cursor]) {
+    G.cursor += 1;
+    render();
+    if (G.cursor >= G.seq.length) onCorrect();
+  } else {
+    onWrong();                         // 输错立即判定
+  }
+}
+
+/* ============================================================
+   7. 计分模块
+   ============================================================ */
+function computeGain(len, streakAfter) {
+  const base = len * 10;
+  const mult = 1 + CFG.STREAK_STEP * Math.min(streakAfter, CFG.STREAK_CAP);
+  const bonus = len === CFG.MAX_LEN ? CFG.LEN10_BONUS : 0;
+  return { base, mult, bonus, gain: Math.round(base * mult) + bonus };
+}
+
+function describeGain(gain, len, mult, bonus) {
+  let text = '+' + gain + ' 分 · ' + len + ' 位 × ' + mult.toFixed(1);
+  if (bonus) text += ' + ' + bonus + ' 满分奖励';
+  return text;
+}
+
+/* ============================================================
+   8. 轮次 / 生命模块
+   ============================================================ */
+function nextLength() {
+  if (G.reachedMax) return 4 + Math.floor(Math.random() * 7);   // 4 ~ 10
+  return Math.min(G.length + 1, CFG.MAX_LEN);
+}
+
+function onCorrect() {
+  clearTimers();
+  const run = ++G.runId;
+
+  const streak = G.streak + 1;
+  const { gain, mult, bonus } = computeGain(G.length, streak);
+
+  G.streak = streak;
+  G.bestStreakRun = Math.max(G.bestStreakRun, streak);
+  G.score += gain;
+  G.correctRounds += 1;
+  if (G.length >= CFG.MAX_LEN) G.reachedMax = true;   // 答对 10 位 → 进入随机长度模式
+  G.state = ST.RESULT;
+  updateRecords();
+
+  const nextLen = nextLength();
+  const isLast = G.round >= CFG.MAX_ROUNDS;
+
+  showDisplay('✓', 'on');
+  say(describeGain(gain, G.length, mult, bonus));
+  render();
+
+  later(() => {
+    if (run !== G.runId) return;
+    if (isLast) { endGame('rounds'); return; }
+    G.length = nextLen;
+    startRound();
+  }, CFG.NEXT_MS);
+}
+
+function onWrong() {
+  clearTimers();
+  const run = ++G.runId;
+
+  G.lives -= 1;
+  G.streak = 0;
+  G.length = CFG.START_LEN;      // 长度重置
+  G.reachedMax = false;          // 退出随机长度模式
+  G.state = ST.RESULT;
+  updateRecords();
+
+  if (G.lives <= 0) {            // 第三次答错：立即结束
+    endGame('lives');
+    return;
+  }
+
+  showSequence(G.seq, true);
+  say('答错了 · 正确序列如上');
+  render();
+
+  const isLast = G.round >= CFG.MAX_ROUNDS;
+  later(() => {
+    if (run !== G.runId) return;
+    if (isLast) { endGame('rounds'); return; }
+    startRound();
+  }, CFG.REVEAL_MS);
+}
+
+function endGame(reason) {
+  clearTimers();
+  silenceAll();
+  G.runId += 1;
+  G.state = ST.OVER;
+  updateRecords();
+  render();
+  showSummary(reason);
+}
+
+function startGame() {
+  clearTimers();
+  silenceAll();
+  G.runId += 1;
+  ensureAudio();                 // 必须在点击手势里解锁 AudioContext
+
+  G.state = ST.IDLE;
+  G.lives = CFG.START_LIVES;
+  G.round = 0;
+  G.length = CFG.START_LEN;
+  G.score = 0;
+  G.streak = 0;
+  G.bestStreakRun = 0;
+  G.correctRounds = 0;
+  G.reachedMax = false;
+  G.seq = [];
+  G.cursor = 0;
+
+  hideOverlay();
+  render();
+  startRound();
+}
+
+/* ============================================================
+   9. 界面弹层
+   ============================================================ */
+function showOverlay() { $('overlay').classList.remove('hidden'); }
+function hideOverlay() { $('overlay').classList.add('hidden'); }
+
+function showIntro() {
+  $('ov-title').textContent = '数字序列记忆';
+  $('ov-body').innerHTML =
+    '<p class="lead">整串数字会同时亮起约 1.5 秒，<br>' +
+    '然后你要按顺序把它们点回来。<br>' +
+    '答对变长，答错扣命 · ' + CFG.START_LIVES + ' 条命 · 最多 ' + CFG.MAX_ROUNDS + ' 轮</p>';
+  $('ov-btn').textContent = '开始游戏';
+  showOverlay();
+}
+
+function showSummary(reason) {
+  const acc = G.round > 0 ? Math.round((G.correctRounds / G.round) * 100) : 0;
+  $('ov-title').textContent = reason === 'lives' ? '生命耗尽' : '完成 ' + CFG.MAX_ROUNDS + ' 轮';
+  $('ov-body').innerHTML =
+    '<div class="sum">' +
+      '<div><span>最终分数</span><b>' + G.score + '</b></div>' +
+      '<div><span>到达轮次</span><b>' + G.round + ' / ' + CFG.MAX_ROUNDS + '</b></div>' +
+      '<div><span>本次最高连胜</span><b>' + G.bestStreakRun + '</b></div>' +
+      '<div><span>答对轮数</span><b>' + G.correctRounds + '</b></div>' +
+      '<div><span>正确率</span><b>' + acc + '%</b></div>' +
+      '<div><span>历史最高分</span><b>' + R.bestScore + '</b></div>' +
+    '</div>';
+  $('ov-btn').textContent = '再来一局';
+  showOverlay();
+}
+
+/* ============================================================
+   10. 启动 / 事件绑定
+   ============================================================ */
+(function buildKeypad() {
+  const pad = $('keypad');
+  for (let d = 0; d <= 9; d++) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'key';
+    btn.dataset.digit = String(d);
+    btn.textContent = String(d);
+    pad.appendChild(btn);
+  }
+})();
+
+$('keypad').addEventListener('click', (e) => {
+  const btn = e.target.closest('.key');
+  if (btn) press(Number(btn.dataset.digit));
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key.length === 1 && e.key >= '0' && e.key <= '9') press(Number(e.key));
+});
+
+$('btnRestart').addEventListener('click', startGame);
+$('ov-btn').addEventListener('click', startGame);
+
+loadRecords();
+render();
+showIntro();
+</script>
+</body>
+</html>

@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>432Hz 虚拟钢琴</title>
+<style>
+  :root{
+    --bg:#12100d; --panel:#1d1a16; --line:#332c24;
+    --text:#f0e8dc; --dim:#a2917c; --accent:#e0a458; --red:#e0554a;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overscroll-behavior:none}
+  body{
+    margin:0;padding:18px 14px 26px;display:flex;justify-content:center;
+    background:radial-gradient(120% 80% at 50% 0%,#241d15 0%,var(--bg) 65%);
+    color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+  }
+  .wrap{width:100%;max-width:880px;display:flex;flex-direction:column;gap:14px}
+
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.5px}
+  h1 small{display:block;font-size:11px;font-weight:400;color:var(--dim);margin-top:3px;letter-spacing:0}
+
+  .seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:3px;gap:3px}
+  .seg button{
+    font:inherit;font-size:12px;padding:6px 13px;border:none;border-radius:8px;
+    background:transparent;color:var(--dim);cursor:pointer;transition:.15s;
+  }
+  .seg button.on{background:linear-gradient(180deg,#8a5c36,#6b4325);color:#fff5e6;box-shadow:0 1px 0 rgba(255,255,255,.12) inset}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+  .btn{
+    font:inherit;font-size:12.5px;padding:7px 13px;border-radius:9px;cursor:pointer;
+    background:#2a241d;border:1px solid var(--line);color:var(--text);transition:.15s;
+  }
+  .btn:hover:not(:disabled){border-color:#54483a;background:#332c24}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  .btn.rec{color:#ffb3ad;border-color:#5a312c}
+  .btn.rec.on{background:var(--red);border-color:var(--red);color:#fff}
+
+  .field{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim)}
+  .field input{
+    font:inherit;font-size:13px;width:76px;padding:6px 8px;border-radius:8px;
+    background:#0f0d0a;border:1px solid var(--line);color:var(--accent);
+    font-variant-numeric:tabular-nums;text-align:center;
+  }
+  .field input:focus{outline:none;border-color:var(--accent)}
+
+  .readout{display:flex;flex-direction:column;gap:3px;min-height:34px}
+  #nowPlaying{font-size:13px;color:var(--text);font-variant-numeric:tabular-nums}
+  #nowPlaying b{color:var(--accent);font-weight:600}
+  #msg{font-size:11.5px;color:var(--dim)}
+
+  .progress{display:flex;align-items:center;gap:8px}
+  .progress.hide{display:none}
+  .progress .bar{flex:1;height:5px;border-radius:3px;background:#0f0d0a;overflow:hidden}
+  .progress .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .12s linear}
+  .progress span{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+
+  .piano{
+    padding:14px 14px 20px;border-radius:16px;
+    background:
+      repeating-linear-gradient(93deg,rgba(0,0,0,.07) 0 2px,rgba(255,255,255,.025) 2px 5px,transparent 5px 14px),
+      linear-gradient(180deg,#8a5c36,#6b4325 45%,#452a16);
+    box-shadow:inset 0 1px 0 rgba(255,220,180,.28),0 22px 40px rgba(0,0,0,.5);
+  }
+  .board{position:relative;height:clamp(140px,26vh,210px);touch-action:none;border-radius:0 0 8px 8px;overflow:hidden}
+
+  .key{position:absolute;top:0;user-select:none;-webkit-user-select:none;touch-action:none;cursor:pointer;padding:0}
+  .key.white{
+    height:100%;z-index:1;border:1px solid #cbbca4;border-top:none;border-radius:0 0 7px 7px;
+    background:linear-gradient(180deg,#fffdf8,#f3ead9 68%,#e2d4bc);
+    box-shadow:inset 0 -6px 10px rgba(0,0,0,.07),0 3px 5px rgba(0,0,0,.28);
+  }
+  .key.white.active{
+    background:linear-gradient(180deg,#ffedc4,#f0c473 68%,#d9a64b);
+    box-shadow:inset 0 -9px 14px rgba(130,85,15,.3),0 1px 3px rgba(0,0,0,.25);
+  }
+  .key.black{
+    height:62%;z-index:3;border-radius:0 0 6px 6px;
+    background:linear-gradient(180deg,#3b3b3b,#151515 62%,#000);
+    box-shadow:inset 0 -4px 6px rgba(255,255,255,.07),0 5px 7px rgba(0,0,0,.55);
+  }
+  .key.black.active{background:linear-gradient(180deg,#655a4b,#2b241c 62%,#120e0a)}
+
+  .note-label{
+    position:absolute;left:0;right:0;bottom:7px;text-align:center;pointer-events:none;
+    font-size:clamp(8px,1.5vw,11px);font-weight:600;color:#8d7a5f;
+  }
+  .key.black .note-label{color:#8e8678;bottom:5px;font-size:clamp(7px,1.2vw,9.5px)}
+  .key-hint{
+    position:absolute;left:0;right:0;top:8px;text-align:center;pointer-events:none;
+    font-size:10px;color:#cbb896;opacity:.75;
+  }
+  .key.black .key-hint{color:#7d7568;top:5px;font-size:9px}
+
+  @media (max-width:520px){
+    body{padding:12px 8px 18px}
+    .seg button{padding:6px 10px;font-size:11.5px}
+    .piano{padding:10px 9px 14px}
+    .btn{padding:7px 10px;font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>432Hz 虚拟钢琴<small>A4 = 432 Hz · 十二平均律 · Web Audio 实时合成</small></h1>
+    <div class="seg" id="timbreSeg">
+      <button type="button" data-timbre="piano" class="on">钢琴</button>
+      <button type="button" data-timbre="harp">竖琴</button>
+      <button type="button" data-timbre="organ">管风琴</button>
+    </div>
+  </header>
+
+  <section class="panel">
+    <div class="row">
+      <label class="field">A4 =
+        <input id="baseFreq" type="number" value="432" min="380" max="480" step="0.1">
+        Hz
+      </label>
+      <button id="btnRec" class="btn rec" type="button">● 录音</button>
+      <button id="btnPlay" class="btn" type="button" disabled>▶ 回放</button>
+    </div>
+    <div class="row">
+      <button id="btnJson" class="btn" type="button" disabled>导出 JSON</button>
+      <button id="btnImport" class="btn" type="button">导入 JSON</button>
+      <button id="btnWav" class="btn" type="button" disabled>导出 WAV</button>
+      <input id="fileInput" type="file" accept=".json,application/json" hidden>
+    </div>
+    <div class="readout">
+      <div id="nowPlaying">未按下任何键</div>
+      <div id="msg">白键 A S D F G H J K L ; · 黑键 W E T Y U O P</div>
+    </div>
+    <div id="progress" class="progress hide">
+      <div class="bar"><i id="bar"></i></div>
+      <span id="progText">0%</span>
+    </div>
+  </section>
+
+  <section class="piano">
+    <div class="board" id="board"></div>
+  </section>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   1. 音高计算
+   ============================================================ */
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const START_MIDI = 60;          // C4
+const END_MIDI   = 79;          // G5
+const DEFAULT_BASE = 432;
+
+let baseFreq = DEFAULT_BASE;
+
+function midiToName(midi) {
+  return NOTE_NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
+}
+function midiToFreq(midi, base) {
+  return (base == null ? baseFreq : base) * Math.pow(2, (midi - 69) / 12);
+}
+function isBlackKey(midi) {
+  return [1, 3, 6, 8, 10].indexOf(((midi % 12) + 12) % 12) !== -1;
+}
+
+const KEYS = [];
+for (let m = START_MIDI; m <= END_MIDI; m++) {
+  KEYS.push({ midi: m, name: midiToName(m), black: isBlackKey(m) });
+}
+
+const NAME_TO_MIDI = new Map(KEYS.map(function (k) { return [k.name, k.midi]; }));
+const NAME_TO_KEY  = new Map(KEYS.map(function (k) { return [k.name, k]; }));
+
+/* 电脑键盘映射：白键 10 + 黑键 7，覆盖 C4–E5 */
+const KEY_MAP = {
+  KeyA: 'C4',  KeyW: 'C#4', KeyS: 'D4',  KeyE: 'D#4', KeyD: 'E4',
+  KeyF: 'F4',  KeyT: 'F#4', KeyG: 'G4',  KeyY: 'G#4', KeyH: 'A4',
+  KeyU: 'A#4', KeyJ: 'B4',  KeyK: 'C5',  KeyO: 'C#5', KeyL: 'D5',
+  KeyP: 'D#5', Semicolon: 'E5'
+};
+const KEY_HINT = {};
+Object.keys(KEY_MAP).forEach(function (code) {
+  KEY_HINT[KEY_MAP[code]] = code === 'Semicolon' ? ';' : code.replace('Key', '');
+});
+
+/* ============================================================
+   2. 音频引擎
+   ============================================================ */
+let actx = null;
+let masterBus = null;
+const liveVoices = new Map();       // sourceId -> voice
+
+const PEAK = 0.32;                  // 单音包络峰值（配合 compressor 留余量）
+
+const TIMBRES = {
+  piano: {
+    attack: 0.005, decay: 2.0, sustain: 0, release: 0.22,
+    cutoff: 5200, q: 0.7,
+    partials: [
+      { type: 'triangle', ratio: 1, gain: 0.55 },
+      { type: 'sine', ratio: 2, gain: 0.16 },
+      { type: 'sine', ratio: 3, gain: 0.07 }
+    ]
+  },
+  harp: {
+    attack: 0.002, decay: 2.6, sustain: 0, release: 0.45,
+    cutoff: 3000, cutoffEnd: 650, q: 1.2,
+    partials: [
+      { type: 'triangle', ratio: 1, gain: 0.55 },
+      { type: 'sine', ratio: 2, gain: 0.22 },
+      { type: 'sine', ratio: 4, gain: 0.06 }
+    ]
+  },
+  organ: {
+    attack: 0.06, decay: 0.1, sustain: 0.78, release: 0.35,
+    cutoff: 7000, q: 0.5,
+    partials: [
+      { type: 'sine', ratio: 1, gain: 0.50 },
+      { type: 'sine', ratio: 2, gain: 0.26 },
+      { type: 'sine', ratio: 3, gain: 0.12 },
+      { type: 'sine', ratio: 4, gain: 0.07 },
+      { type: 'sine', ratio: 6, gain: 0.035 }
+    ]
+  }
+};
+
+let currentTimbre = 'piano';
+
+/* 主链路：总线 → 压缩器（限幅防爆音） → 输出 */
+function buildMasterChain(ctx) {
+  const bus = ctx.createGain();
+  bus.gain.value = 0.9;
+
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -20;
+  comp.knee.value = 18;
+  comp.ratio.value = 6;
+  comp.attack.value = 0.004;
+  comp.release.value = 0.25;
+
+  const out = ctx.createGain();
+  out.gain.value = 0.8;
+
+  bus.connect(comp);
+  comp.connect(out);
+  out.connect(ctx.destination);
+  return bus;
+}
+
+function ensureAudio() {
+  if (actx) {
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  try {
+    actx = new AC();
+    masterBus = buildMasterChain(actx);
+  } catch (err) {
+    actx = null;
+    return null;
+  }
+  return actx;
+}
+
+/* 包络在某时刻的解析值，仅用于 cancelAndHoldAtTime 不可用时的兜底 */
+function envAt(T, t) {
+  if (t <= 0) return 0.0001;
+  if (t <= T.attack) return 0.0001 * Math.pow(PEAK / 0.0001, t / T.attack);
+  const d = t - T.attack;
+  const target = T.sustain > 0 ? PEAK * T.sustain : 0.0001;
+  if (d >= T.decay) return target;
+  return PEAK * Math.pow(target / PEAK, d / T.decay);
+}
+
+/*
+  创建一条发声链（实时与离线共用）。
+  startAt 用 ctx 时间轴；离线渲染时传绝对秒数。
+*/
+function buildVoice(ctx, dest, freq, timbreName, startAt) {
+  const T = TIMBRES[timbreName] || TIMBRES.piano;
+
+  const vg = ctx.createGain();
+  const filt = ctx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.Q.value = T.q;
+  filt.frequency.setValueAtTime(T.cutoff, startAt);
+  if (T.cutoffEnd) {
+    filt.frequency.exponentialRampToValueAtTime(T.cutoffEnd, startAt + T.decay);
+  }
+
+  const parts = T.partials.map(function (p) {
+    const osc = ctx.createOscillator();
+    osc.type = p.type;
+    osc.frequency.setValueAtTime(freq * p.ratio, startAt);
+    const pg = ctx.createGain();
+    pg.gain.value = p.gain;
+    osc.connect(pg);
+    pg.connect(filt);
+    osc.start(startAt);
+    return { osc: osc, ratio: p.ratio };
+  });
+
+  filt.connect(vg);
+  vg.connect(dest);
+
+  const sustainLevel = T.sustain > 0 ? PEAK * T.sustain : 0.0001;
+  vg.gain.setValueAtTime(0.0001, startAt);
+  vg.gain.exponentialRampToValueAtTime(PEAK, startAt + T.attack);
+  vg.gain.exponentialRampToValueAtTime(sustainLevel, startAt + T.attack + T.decay);
+
+  function holdAt(param, time) {
+    if (typeof param.cancelAndHoldAtTime === 'function') {
+      param.cancelAndHoldAtTime(time);
+    } else {
+      param.cancelScheduledValues(time);
+      param.setValueAtTime(envAt(T, time - startAt), time);
+    }
+  }
+
+  return {
+    midi: null,
+    startedAt: startAt,
+    retune: function (newBase, midi) {
+      const f = midiToFreq(midi, newBase);
+      const t = ctx.currentTime;
+      parts.forEach(function (p) {
+        p.osc.frequency.setTargetAtTime(f * p.ratio, t, 0.015);
+      });
+    },
+    release: function (at) {
+      const r = Math.max(at, startAt + 0.01);
+      holdAt(vg.gain, r);
+      vg.gain.exponentialRampToValueAtTime(0.0001, r + T.release);
+      parts.forEach(function (p) {
+        try { p.osc.stop(r + T.release + 0.03); } catch (err) {}
+      });
+    },
+    kill: function (at) {
+      const r = Math.max(at, startAt + 0.01);
+      holdAt(vg.gain, r);
+      vg.gain.exponentialRampToValueAtTime(0.0001, r + 0.02);
+      parts.forEach(function (p) {
+        try { p.osc.stop(r + 0.05); } catch (err) {}
+      });
+    }
+  };
+}
+
+function playVoice(midi, freq, timbre) {
+  const ctx = ensureAudio();
+  if (!ctx) return null;
+  const v = buildVoice(ctx, masterBus, freq == null ? midiToFreq(midi) : freq, timbre, ctx.currentTime);
+  v.midi = midi;
+  return v;
+}
+
+function stopVoice(voice) {
+  if (!voice) return;
+  voice.release(actx ? actx.currentTime : 0);
+}
+
+/* ============================================================
+   3. 键盘布局与事件
+   ============================================================ */
+const keyEls = new Map();           // noteName -> element
+const holders = new Map();          // sourceId -> noteName
+const holdCounts = new Map();       // noteName -> 按住来源数量
+const pointerHold = new Map();      // pointerId -> noteName
+
+function buildKeyboard() {
+  const board = document.getElementById('board');
+  const whiteCount = KEYS.filter(function (k) { return !k.black; }).length;
+  const unit = 100 / whiteCount;
+  let whitesBefore = 0;
+
+  KEYS.forEach(function (k) {
+    const el = document.createElement('div');
+    el.className = 'key ' + (k.black ? 'black' : 'white');
+    el.dataset.note = k.name;
+
+    if (!k.black) {
+      el.style.left = (whitesBefore * unit) + '%';
+      el.style.width = unit + '%';
+      whitesBefore += 1;
+    } else {
+      const bw = unit * 0.62;
+      el.style.left = (whitesBefore * unit - bw / 2) + '%';
+      el.style.width = bw + '%';
+    }
+
+    const label = document.createElement('span');
+    label.className = 'note-label';
+    label.textContent = k.name;
+    el.appendChild(label);
+
+    if (KEY_HINT[k.name]) {
+      const hint = document.createElement('span');
+      hint.className = 'key-hint';
+      hint.textContent = KEY_HINT[k.name];
+      el.appendChild(hint);
+    }
+
+    board.appendChild(el);
+    keyEls.set(k.name, el);
+  });
+}
+
+function paintKey(note) {
+  const el = keyEls.get(note);
+  if (el) el.classList.toggle('active', holdCounts.has(note));
+}
+
+function addHolder(sid, note) {
+  holders.set(sid, note);
+  holdCounts.set(note, (holdCounts.get(note) || 0) + 1);
+  paintKey(note);
+}
+
+function removeHolder(sid) {
+  const note = holders.get(sid);
+  if (!note) return;
+  holders.delete(sid);
+  const left = (holdCounts.get(note) || 1) - 1;
+  if (left <= 0) holdCounts.delete(note);
+  else holdCounts.set(note, left);
+  paintKey(note);
+}
+
+/* ---- 核心开关音 ---- */
+function noteOn(note, sid, opts) {
+  if (liveVoices.has(sid)) return;
+  const midi = NAME_TO_MIDI.get(note);
+  if (midi == null) return;
+
+  const ctx = ensureAudio();
+  if (!ctx) { setMsg('此浏览器不支持 Web Audio，无法发声'); return; }
+
+  const timbre = (opts && opts.timbre) || currentTimbre;
+  const freq = (opts && opts.freq) || midiToFreq(midi);
+  const voice = playVoice(midi, freq, timbre);
+  if (!voice) return;
+
+  liveVoices.set(sid, voice);
+  addHolder(sid, note);
+
+  if (REC.state === 'recording') {
+    REC.pending.set(sid, {
+      note: note,
+      midi: midi,
+      freq: freq,
+      start: performance.now() - REC.t0,
+      timbre: timbre
+    });
+  }
+  renderNowPlaying();
+}
+
+function noteOff(sid) {
+  const voice = liveVoices.get(sid);
+  if (!voice) return;
+  liveVoices.delete(sid);
+  stopVoice(voice);
+  removeHolder(sid);
+
+  if (REC.state === 'recording' && REC.pending.has(sid)) {
+    const p = REC.pending.get(sid);
+    REC.pending.delete(sid);
+    const dur = performance.now() - REC.t0 - p.start;
+    if (dur > 10) {
+      REC.events.push({
+        note: p.note, midi: p.midi, freq: p.freq,
+        start: Math.round(p.start), duration: Math.round(dur), timbre: p.timbre
+      });
+      updateButtons();
+    }
+  }
+  renderNowPlaying();
+}
+
+function releaseAll() {
+  Array.from(holders.keys()).forEach(function (sid) { noteOff(sid); });
+  pointerHold.clear();
+}
+
+/* ---- 指针（鼠标 / 触摸，多指独立） ---- */
+function bindPointer() {
+  const board = document.getElementById('board');
+
+  board.addEventListener('pointerdown', function (e) {
+    const el = e.target.closest ? e.target.closest('.key') : null;
+    if (!el) return;
+    e.preventDefault();
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+
+    if (pointerHold.has(e.pointerId)) return;
+    const note = el.dataset.note;
+    pointerHold.set(e.pointerId, note);
+    noteOn(note, 'ptr:' + e.pointerId);
+  });
+
+  function endPointer(e) {
+    if (!pointerHold.has(e.pointerId)) return;
+    pointerHold.delete(e.pointerId);
+    noteOff('ptr:' + e.pointerId);
+  }
+
+  window.addEventListener('pointerup', endPointer);
+  window.addEventListener('pointercancel', endPointer);
+}
+
+/* ---- 电脑键盘 ---- */
+function isTypingTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+}
+
+function bindKeyboard() {
+  document.addEventListener('keydown', function (e) {
+    if (e.repeat || isTypingTarget(e.target)) return;
+    const note = KEY_MAP[e.code];
+    if (!note) return;
+    e.preventDefault();
+    noteOn(note, 'kbd:' + e.code);
+  });
+
+  document.addEventListener('keyup', function (e) {
+    const note = KEY_MAP[e.code];
+    if (!note) return;
+    noteOff('kbd:' + e.code);
+  });
+
+  window.addEventListener('blur', releaseAll);
+}
+
+/* ============================================================
+   4. 录音 / 回放
+   ============================================================ */
+const REC = {
+  state: 'idle',        // idle | recording | playing
+  events: [],
+  pending: new Map(),
+  t0: 0,
+  timers: new Set(),
+  endTimer: null
+};
+
+function scheduleREC(fn, ms) {
+  const id = setTimeout(function () {
+    REC.timers.delete(id);
+    fn();
+  }, Math.max(0, ms));
+  REC.timers.add(id);
+  return id;
+}
+
+function clearRECTimers() {
+  REC.timers.forEach(function (id) { clearTimeout(id); });
+  REC.timers.clear();
+  REC.endTimer = null;
+}
+
+function startRecording() {
+  stopPlayback(true);
+  ensureAudio();
+  REC.events = [];
+  REC.pending.clear();
+  REC.t0 = performance.now();
+  REC.state = 'recording';
+  setMsg('录音中… 再点一次停止');
+  updateButtons();
+}
+
+function stopRecording() {
+  if (REC.state !== 'recording') return;
+  const now = performance.now();
+  REC.pending.forEach(function (p) {
+    const dur = now - REC.t0 - p.start;
+    if (dur > 10) {
+      REC.events.push({
+        note: p.note, midi: p.midi, freq: p.freq,
+        start: Math.round(p.start), duration: Math.round(dur), timbre: p.timbre
+      });
+    }
+  });
+  REC.pending.clear();
+  REC.state = 'idle';
+  const sec = REC.events.length ? (lastEnd() / 1000).toFixed(1) : '0';
+  setMsg(REC.events.length
+    ? '录制结束 · ' + REC.events.length + ' 个音符 · 约 ' + sec + ' 秒'
+    : '录制结束 · 没有录到音符');
+  updateButtons();
+}
+
+function lastEnd() {
+  let end = 0;
+  for (let i = 0; i < REC.events.length; i++) {
+    const e = REC.events[i];
+    end = Math.max(end, e.start + e.duration);
+  }
+  return end;
+}
+
+function snapshotEvents() {
+  const out = REC.events.slice();
+  if (REC.state === 'recording') {
+    const now = performance.now();
+    REC.pending.forEach(function (p) {
+      const dur = now - REC.t0 - p.start;
+      if (dur > 10) {
+        out.push({
+          note: p.note, midi: p.midi, freq: p.freq,
+          start: Math.round(p.start), duration: Math.round(dur), timbre: p.timbre
+        });
+      }
+    });
+  }
+  return out.sort(function (a, b) { return a.start - b.start; });
+}
+
+function startPlayback() {
+  if (REC.state === 'playing') return;
+  const events = snapshotEvents();
+  if (!events.length) { setMsg('还没有录音'); return; }
+
+  stopRecording();
+  ensureAudio();
+  REC.state = 'playing';
+  REC.pending.clear();
+
+  events.forEach(function (ev, i) {
+    const sid = 'pb:' + i;
+    scheduleREC(function () {
+      noteOn(ev.note, sid, { timbre: ev.timbre, freq: ev.freq });
+    }, ev.start);
+    scheduleREC(function () { noteOff(sid); }, ev.start + ev.duration);
+  });
+
+  REC.endTimer = scheduleREC(function () {
+    stopPlayback(false);
+  }, lastEndFrom(events) + 400);
+
+  setMsg('回放中…');
+  updateButtons();
+}
+
+function lastEndFrom(events) {
+  let end = 0;
+  events.forEach(function (e) { end = Math.max(end, e.start + e.duration); });
+  return end;
+}
+
+function stopPlayback(silent) {
+  clearRECTimers();
+  Array.from(holders.keys()).forEach(function (sid) {
+    if (sid.indexOf('pb:') === 0) noteOff(sid);
+  });
+  if (REC.state === 'playing') {
+    REC.state = 'idle';
+    if (!silent) setMsg('回放结束');
+    updateButtons();
+  }
+}
+
+/* ============================================================
+   5. 导出：JSON / WAV
+   ============================================================ */
+function stamp() {
+  const d = new Date();
+  const p = function (n) { return String(n).padStart(2, '0'); };
+  return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+}
+
+function round2(n) { return Math.round(n * 100) / 100; }
+
+function exportJSON() {
+  const events = snapshotEvents();
+  if (!events.length) { setMsg('还没有录音'); return; }
+  const data = {
+    version: 1,
+    createdAt: new Date().toISOString(),
+    baseFreq: baseFreq,
+    timbre: currentTimbre,
+    events: events.map(function (e) {
+      return {
+        note: e.note,
+        freq: round2(e.freq),
+        start: e.start,
+        duration: e.duration,
+        timbre: e.timbre
+      };
+    })
+  };
+  download(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }),
+           'piano-recording-' + stamp() + '.json');
+  setMsg('已导出 ' + events.length + ' 个音符的 JSON');
+}
+
+function normalizeEvents(raw) {
+  const list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.events) ? raw.events : null);
+  if (!list) throw new Error('文件里没有 events 数组');
+
+  const out = [];
+  list.forEach(function (e) {
+    if (!e || typeof e.note !== 'string') return;
+    const midi = NAME_TO_MIDI.get(e.note);
+    if (midi == null) return;
+    const start = Number(e.start);
+    const duration = Number(e.duration);
+    if (!Number.isFinite(start) || !Number.isFinite(duration) || duration <= 0) return;
+    const timbre = TIMBRES[e.timbre] ? e.timbre : currentTimbre;
+    const freq = Number.isFinite(Number(e.freq)) && Number(e.freq) > 0
+      ? Number(e.freq)
+      : midiToFreq(midi);
+    out.push({
+      note: e.note,
+      midi: midi,
+      freq: freq,
+      start: Math.max(0, Math.round(start)),
+      duration: Math.max(10, Math.round(duration)),
+      timbre: timbre
+    });
+  });
+  return out.sort(function (a, b) { return a.start - b.start; });
+}
+
+function importJSON(file) {
+  const reader = new FileReader();
+  reader.onload = function () {
+    try {
+      const data = JSON.parse(String(reader.result));
+      const events = normalizeEvents(data);
+      if (!events.length) throw new Error('没有可用的音符事件');
+
+      stopPlayback(true);
+      stopRecording();
+      REC.events = events;
+
+      if (data && Number.isFinite(Number(data.baseFreq))) {
+        setBaseFreq(Number(data.baseFreq), true);
+      }
+      setMsg('已导入 ' + events.length + ' 个音符 · 点「回放」试听');
+      updateButtons();
+    } catch (err) {
+      setMsg('导入失败：' + (err && err.message ? err.message : '文件格式不正确'));
+    }
+  };
+  reader.onerror = function () { setMsg('导入失败：无法读取文件'); };
+  reader.readAsText(file);
+}
+
+function encodeWAV(buffer) {
+  const channels = buffer.numberOfChannels;
+  const frames = buffer.length;
+  const bytesPerSample = 2;
+  const blockAlign = channels * bytesPerSample;
+  const dataSize = frames * blockAlign;
+  const ab = new ArrayBuffer(44 + dataSize);
+  const dv = new DataView(ab);
+
+  function writeStr(offset, str) {
+    for (let i = 0; i < str.length; i++) dv.setUint8(offset + i, str.charCodeAt(i));
+  }
+
+  writeStr(0, 'RIFF');
+  dv.setUint32(4, 36 + dataSize, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  dv.setUint32(16, 16, true);
+  dv.setUint16(20, 1, true);
+  dv.setUint16(22, channels, true);
+  dv.setUint32(24, buffer.sampleRate, true);
+  dv.setUint32(28, buffer.sampleRate * blockAlign, true);
+  dv.setUint16(32, blockAlign, true);
+  dv.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  dv.setUint32(40, dataSize, true);
+
+  const chans = [];
+  for (let c = 0; c < channels; c++) chans.push(buffer.getChannelData(c));
+
+  let offset = 44;
+  for (let i = 0; i < frames; i++) {
+    for (let c = 0; c < channels; c++) {
+      let s = chans[c][i];
+      s = s < -1 ? -1 : (s > 1 ? 1 : s);
+      dv.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+function setProgress(p) {
+  const wrap = document.getElementById('progress');
+  wrap.classList.toggle('hide', p < 0);
+  if (p < 0) return;
+  const pct = Math.round(Math.max(0, Math.min(1, p)) * 100);
+  document.getElementById('bar').style.width = pct + '%';
+  document.getElementById('progText').textContent = pct + '%';
+}
+
+async function exportWAV() {
+  const events = snapshotEvents();
+  if (!events.length) { setMsg('还没有录音'); return; }
+  if (REC.state === 'recording') stopRecording();
+
+  const OfflineAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!OfflineAC) { setMsg('WAV 导出失败：浏览器不支持离线渲染'); return; }
+
+  const SR = 44100;
+  const tail = 3.0;
+  const totalSec = lastEndFrom(events) / 1000 + tail;
+
+  if (totalSec > 305) {
+    setMsg('WAV 导出失败：录音超过 5 分钟');
+    return;
+  }
+
+  setExportBusy(true);
+  setProgress(0);
+  setMsg('正在离线渲染 ' + totalSec.toFixed(1) + ' 秒音频…');
+
+  try {
+    const frames = Math.ceil(totalSec * SR);
+    const off = new OfflineAC(2, frames, SR);
+    const bus = buildMasterChain(off);
+
+    events.forEach(function (ev) {
+      const startAt = ev.start / 1000;
+      const v = buildVoice(off, bus, ev.freq, ev.timbre, startAt);
+      v.release(startAt + ev.duration / 1000);
+    });
+
+    // 分块进度：OfflineAudioContext 支持 suspend 时才有真实进度
+    if (typeof off.suspend === 'function') {
+      const steps = 20;
+      for (let i = 1; i < steps; i++) {
+        try {
+          off.suspend((totalSec * i) / steps).then(function () {
+            setProgress(i / steps);
+            off.resume();
+          }).catch(function () {});
+        } catch (err) { break; }
+      }
+    }
+
+    const buffer = await off.startRendering();
+    setProgress(1);
+    setMsg('正在编码 WAV…');
+    const blob = encodeWAV(buffer);
+    download(blob, 'piano-recording-' + stamp() + '.wav');
+    setMsg('已导出 WAV · ' + (blob.size / 1024 / 1024).toFixed(1) + ' MB');
+  } catch (err) {
+    setMsg('WAV 导出失败：' + (err && err.message ? err.message : '未知错误'));
+  } finally {
+    setExportBusy(false);
+    setTimeout(function () { setProgress(-1); }, 900);
+  }
+}
+
+function setExportBusy(busy) {
+  if (busy) {
+    ['btnWav', 'btnJson', 'btnImport', 'btnRec', 'btnPlay'].forEach(function (id) {
+      document.getElementById(id).disabled = true;
+    });
+  } else {
+    updateButtons();
+  }
+}
+
+/* ============================================================
+   6. UI 渲染
+   ============================================================ */
+function setMsg(text) {
+  document.getElementById('msg').textContent = text;
+}
+
+function renderNowPlaying() {
+  const notes = Array.from(holdCounts.keys()).sort(function (a, b) {
+    return NAME_TO_MIDI.get(a) - NAME_TO_MIDI.get(b);
+  });
+  if (!notes.length) {
+    document.getElementById('nowPlaying').textContent = '未按下任何键';
+    return;
+  }
+  document.getElementById('nowPlaying').innerHTML = notes.map(function (n) {
+    return '<b>' + n + '</b> ' + midiToFreq(NAME_TO_MIDI.get(n)).toFixed(1) + 'Hz';
+  }).join(' · ');
+}
+
+function updateButtons() {
+  const hasEvents = REC.events.length > 0;
+  const rec = document.getElementById('btnRec');
+  const play = document.getElementById('btnPlay');
+
+  rec.textContent = REC.state === 'recording' ? '■ 停止录音' : '● 录音';
+  rec.classList.toggle('on', REC.state === 'recording');
+
+  play.textContent = REC.state === 'playing' ? '■ 停止回放' : '▶ 回放';
+  play.dataset.lock = hasEvents ? '0' : '1';
+
+  document.getElementById('btnJson').disabled = !hasEvents;
+  document.getElementById('btnWav').disabled = !hasEvents;
+  play.disabled = !hasEvents && REC.state !== 'playing';
+}
+
+function setBaseFreq(value, silent) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 380 || n > 480) return false;
+
+  baseFreq = n;
+  liveVoices.forEach(function (v, sid) {
+    if (v.midi != null && sid.indexOf('pb:') !== 0) v.retune(baseFreq, v.midi);
+  });
+  renderNowPlaying();
+  if (!silent) {
+    setMsg('基准音已设为 A4 = ' + baseFreq + ' Hz');
+  }
+  return true;
+}
+
+function bindUI() {
+  document.getElementById('timbreSeg').addEventListener('click', function (e) {
+    const btn = e.target.closest ? e.target.closest('button[data-timbre]') : null;
+    if (!btn) return;
+    currentTimbre = btn.dataset.timbre;
+    Array.from(this.querySelectorAll('button')).forEach(function (b) {
+      b.classList.toggle('on', b === btn);
+    });
+    setMsg('音色：' + btn.textContent + '（影响之后按下的音）');
+  });
+
+  const input = document.getElementById('baseFreq');
+  input.addEventListener('input', function () {
+    setBaseFreq(input.value, true);
+  });
+  input.addEventListener('change', function () {
+    if (!setBaseFreq(input.value, true)) {
+      input.value = String(baseFreq);
+      setMsg('基准频率需在 380–480 Hz 之间');
+    }
+  });
+
+  document.getElementById('btnRec').addEventListener('click', function () {
+    ensureAudio();
+    if (REC.state === 'recording') stopRecording();
+    else startRecording();
+  });
+
+  document.getElementById('btnPlay').addEventListener('click', function () {
+    ensureAudio();
+    if (REC.state === 'playing') stopPlayback(false);
+    else startPlayback();
+  });
+
+  document.getElementById('btnJson').addEventListener('click', function () {
+    exportJSON();
+  });
+
+  document.getElementById('btnImport').addEventListener('click', function () {
+    document.getElementById('fileInput').click();
+  });
+
+  document.getElementById('fileInput').addEventListener('change', function (e) {
+    const file = e.target.files && e.target.files[0];
+    if (file) importJSON(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('btnWav').addEventListener('click', function () {
+    exportWAV();
+  });
+}
+
+/* ============================================================
+   7. 启动
+   ============================================================ */
+buildKeyboard();
+bindPointer();
+bindKeyboard();
+bindUI();
+
+// 解锁音频：任何首次用户手势都可以
+['pointerdown', 'keydown', 'touchstart'].forEach(function (type) {
+  window.addEventListener(type, function once() {
+    ensureAudio();
+    window.removeEventListener(type, once);
+  }, { once: true, passive: true });
+});
+
+updateButtons();
+renderNowPlaying();
+setProgress(-1);
+</script>
+</body>
+</html>

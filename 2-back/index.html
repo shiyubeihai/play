@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>2-back 工作记忆训练</title>
+<style>
+  :root{
+    --bg1:#1a1a2e;
+    --bg2:#16213e;
+    --panel:rgba(255,255,255,0.05);
+    --line:rgba(255,255,255,0.15);
+    --text:#e0e0e0;
+    --dim:#8899aa;
+    --accent:#4fc3f7;
+    --ok:#43e97b;
+    --bad:#ff6b6b;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+
+  .container {
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 24px;
+    padding: 30px 28px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    text-align: center;
+    max-width: 420px;
+    width: 92%;
+  }
+
+  h1 {
+    color: var(--text);
+    font-size: 25px;
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+
+  .subtitle {
+    color: var(--dim);
+    font-size: 13px;
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
+
+  .stimulus-box {
+    width: 180px;
+    height: 140px;
+    margin: 0 auto 22px;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 68px;
+    font-weight: bold;
+    color: #ffffff;
+    font-variant-numeric: tabular-nums;
+    transition: color .18s ease, border-color .18s ease, box-shadow .18s ease;
+    user-select: none;
+  }
+
+  /* 刺激消失：文字淡出，盒子保留，避免布局跳动 */
+  .stimulus-box.empty { color: transparent; }
+
+  .stimulus-box.highlight {
+    border-color: var(--accent);
+    box-shadow: 0 0 30px rgba(79,195,247,0.3);
+  }
+
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    color: var(--dim);
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .info-item span {
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 17px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 18px;
+    /* 用 visibility 占位，避免按钮出现时把下方内容顶下去 */
+    visibility: hidden;
+  }
+
+  .button-group.visible { visibility: visible; }
+
+  .btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 40px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .1s, box-shadow .2s, opacity .15s;
+    letter-spacing: .5px;
+    font-family: inherit;
+  }
+
+  .btn:active { transform: scale(0.95); }
+
+  .btn-match {
+    background: linear-gradient(135deg, #43e97b, #38f9d7);
+    color: #1a1a2e;
+    box-shadow: 0 4px 15px rgba(67,233,123,0.3);
+  }
+
+  .btn-no-match {
+    background: linear-gradient(135deg, #fa709a, #fee140);
+    color: #1a1a2e;
+    box-shadow: 0 4px 15px rgba(250,112,154,0.3);
+  }
+
+  .btn-start {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+    padding: 12px 44px;
+  }
+
+  .feedback {
+    margin-top: 18px;
+    font-size: 15px;
+    min-height: 26px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .feedback.correct { color: var(--ok); }
+  .feedback.wrong { color: var(--bad); }
+  .feedback.waiting { color: var(--dim); }
+
+  .status-bar {
+    display: flex;
+    justify-content: center;
+    gap: 26px;
+    margin-top: 14px;
+    color: var(--dim);
+    font-size: 13px;
+  }
+
+  .status-bar span {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>2-back 训练</h1>
+  <div class="subtitle">判断当前数字是否与两步前的数字相同</div>
+
+  <div class="stimulus-box" id="stimulus">—</div>
+
+  <div class="info-row">
+    <div class="info-item">当前 n = <span id="nDisplay">2</span></div>
+    <div class="info-item">正确率 <span id="accuracyDisplay">—</span></div>
+    <div class="info-item">第 <span id="trialDisplay">0</span> 次</div>
+  </div>
+
+  <div class="button-group" id="responseButtons">
+    <button class="btn btn-match" id="matchBtn">相同</button>
+    <button class="btn btn-no-match" id="noMatchBtn">不同</button>
+  </div>
+
+  <button class="btn btn-start" id="startBtn">开始训练</button>
+
+  <div class="feedback waiting" id="feedback">点击「开始训练」启动</div>
+
+  <div class="status-bar">
+    <div>正确 <span id="correctCount">0</span></div>
+    <div>错误 <span id="wrongCount">0</span></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ===== 参数 ===== */
+  var N = 2;               // n-back 的 n
+  var SHOW_MS = 800;       // 数字可见时长
+  var TRIAL_MS = 2000;     // 单个试次总时长（节奏固定）
+  var START_DELAY = 900;   // 点开始到第一个刺激
+  var MATCH_RATE = 0.3;    // 匹配试次占比（标准 25–30%）
+  var DIGIT_MIN = 1;
+  var DIGIT_MAX = 9;
+
+  /* ===== 状态 ===== */
+  var history = [];
+  var currentIndex = 0;
+  var currentIsMatch = false;
+  var correct = 0;
+  var wrong = 0;
+  var total = 0;
+  var isRunning = false;
+  var isWaitingForResponse = false;
+
+  /* 定时器统一管理：任何一次重置都能全部清掉 */
+  var timers = new Set();
+  var sessionToken = 0;
+
+  function later(fn, ms) {
+    var token = sessionToken;
+    var id = setTimeout(function () {
+      timers.delete(id);
+      if (token !== sessionToken) return;   // 旧会话的回调直接丢弃
+      fn();
+    }, ms);
+    timers.add(id);
+    return id;
+  }
+
+  function clearTimers() {
+    timers.forEach(function (id) { clearTimeout(id); });
+    timers.clear();
+  }
+
+  /* ===== DOM ===== */
+  var stimEl = document.getElementById('stimulus');
+  var nDisplay = document.getElementById('nDisplay');
+  var accuracyDisplay = document.getElementById('accuracyDisplay');
+  var trialDisplay = document.getElementById('trialDisplay');
+  var feedbackEl = document.getElementById('feedback');
+  var correctCountEl = document.getElementById('correctCount');
+  var wrongCountEl = document.getElementById('wrongCount');
+  var startBtn = document.getElementById('startBtn');
+  var matchBtn = document.getElementById('matchBtn');
+  var noMatchBtn = document.getElementById('noMatchBtn');
+  var responseBtns = document.getElementById('responseButtons');
+
+  /* ===== 辅助 ===== */
+  function randomDigit() {
+    return Math.floor(Math.random() * (DIGIT_MAX - DIGIT_MIN + 1)) + DIGIT_MIN;
+  }
+
+  function updateStats() {
+    var scored = correct + wrong;
+    accuracyDisplay.textContent = scored === 0 ? '—' : Math.round((correct / scored) * 100) + '%';
+    trialDisplay.textContent = total;
+    correctCountEl.textContent = correct;
+    wrongCountEl.textContent = wrong;
+  }
+
+  /* 生成下一个数字：按 MATCH_RATE 强制制造匹配，否则明确避开匹配值 */
+  function nextDigit() {
+    if (history.length >= N) {
+      var candidate = history[history.length - N];
+      if (Math.random() < MATCH_RATE) return candidate;
+
+      var d;
+      do {
+        d = randomDigit();
+      } while (d === candidate);
+      return d;
+    }
+    return randomDigit();
+  }
+
+  /* ===== 试次流程 ===== */
+  function startTrial() {
+    if (!isRunning) return;
+
+    var digit = nextDigit();
+    history.push(digit);
+    currentIndex++;
+
+    /* 前 N 个试次没有参照，不算对错 */
+    var scored = currentIndex > N;
+    currentIsMatch = scored && (digit === history[currentIndex - N - 1]);
+
+    stimEl.textContent = String(digit);
+    stimEl.classList.remove('empty');
+    stimEl.classList.add('highlight');
+
+    isWaitingForResponse = scored;
+    responseBtns.classList.toggle('visible', scored);
+
+    if (scored) {
+      feedbackEl.textContent = '与两步前相同吗？';
+      feedbackEl.className = 'feedback waiting';
+    } else {
+      feedbackEl.textContent = '记住这个数字（还需 ' + (N - currentIndex + 1) + ' 个）';
+      feedbackEl.className = 'feedback waiting';
+    }
+
+    /* 到点隐藏刺激，迫使在脑内保持 */
+    later(function () {
+      stimEl.classList.add('empty');
+      stimEl.classList.remove('highlight');
+    }, SHOW_MS);
+
+    /* 试次结束：结算漏报，进入下一轮 */
+    later(function () {
+      if (isWaitingForResponse) {
+        /* 超时未响应，判为漏报 */
+        isWaitingForResponse = false;
+        total++;
+        wrong++;
+        updateStats();
+        if (currentIndex >= N) {
+          feedbackEl.textContent = '漏报 · 本应回答「' + (currentIsMatch ? '相同' : '不同') + '」';
+          feedbackEl.className = 'feedback wrong';
+        }
+      }
+      responseBtns.classList.remove('visible');
+      startTrial();
+    }, TRIAL_MS);
+  }
+
+  /* ===== 响应 ===== */
+  function handleResponse(playerSaysMatch) {
+    if (!isRunning || !isWaitingForResponse) return;
+
+    isWaitingForResponse = false;
+    responseBtns.classList.remove('visible');
+    total++;
+
+    if (playerSaysMatch === currentIsMatch) {
+      correct++;
+      feedbackEl.textContent = '正确';
+      feedbackEl.className = 'feedback correct';
+    } else {
+      wrong++;
+      feedbackEl.textContent = '错误 · 本应是「' + (currentIsMatch ? '相同' : '不同') + '」';
+      feedbackEl.className = 'feedback wrong';
+    }
+
+    updateStats();
+    /* 不推进试次，保持固定节奏 */
+  }
+
+  /* ===== 开始 / 重置 ===== */
+  function startTraining() {
+    /* 先彻底清场：旧定时器全部作废 */
+    sessionToken++;
+    clearTimers();
+
+    history = [];
+    currentIndex = 0;
+    currentIsMatch = false;
+    correct = 0;
+    wrong = 0;
+    total = 0;
+    isRunning = true;
+    isWaitingForResponse = false;
+
+    nDisplay.textContent = String(N);
+    updateStats();
+    stimEl.textContent = '—';
+    stimEl.classList.remove('empty', 'highlight');
+    responseBtns.classList.remove('visible');
+    feedbackEl.textContent = '准备…';
+    feedbackEl.className = 'feedback waiting';
+    startBtn.textContent = '重新开始';
+
+    later(startTrial, START_DELAY);
+  }
+
+  /* ===== 事件 ===== */
+  matchBtn.addEventListener('click', function () { handleResponse(true); });
+  noMatchBtn.addEventListener('click', function () { handleResponse(false); });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.repeat) return;
+    var k = e.key.toLowerCase();
+    if (k === 'a') handleResponse(true);
+    else if (k === 'l') handleResponse(false);
+  });
+
+  startBtn.addEventListener('click', startTraining);
+
+  /* ===== 初始化 ===== */
+  nDisplay.textContent = String(N);
+  updateStats();
+})();
+</script>
+</body>
+</html>
