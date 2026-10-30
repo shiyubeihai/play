@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Play · 认知训练与小游戏</title>
+<meta name="description" content="认知训练、眼动放松、模拟钢琴 —— 打开即玩的浏览器小游戏合集。Browser mini-games you can play instantly.">
+<meta property="og:title" content="Play — 认知训练与小游戏">
+<meta property="og:description" content="舒尔特方格 · 数字序列记忆 · 2-Back · 眼动放松 · 432Hz 钢琴｜打开即玩">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://shiyubeihai.github.io/play/">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+<style>
+  :root{
+    --bg:#f6f5f2;
+    --panel:#ffffff;
+    --line:#e5e1d8;
+    --ink:#2a2823;
+    --muted:#6d675c;
+    --khaki:#7a6842;
+    --khaki-soft:rgba(122,104,66,.07);
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.6;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:56px 24px 72px}
+
+  /* ===== 头部 ===== */
+  .bar{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+       padding-bottom:18px;border-bottom:1px solid var(--line)}
+  h1{
+    margin:0;
+    font-family:ui-serif,Georgia,"Songti SC","SimSun",serif;
+    font-size:clamp(26px,4.2vw,38px);
+    font-weight:600;letter-spacing:.06em;
+  }
+  h1 small{
+    display:block;margin-top:6px;
+    font-family:system-ui,sans-serif;
+    font-size:13px;font-weight:400;letter-spacing:.04em;
+    color:var(--muted);
+  }
+  #langBtn{
+    flex:none;cursor:pointer;font:inherit;font-size:12.5px;
+    color:var(--khaki);background:transparent;
+    border:1px solid var(--line);border-radius:999px;
+    padding:6px 14px;letter-spacing:.04em;
+    transition:background .2s,border-color .2s;
+  }
+  #langBtn:hover{background:var(--khaki-soft);border-color:var(--khaki)}
+  #langBtn:focus-visible{outline:2px solid var(--khaki);outline-offset:2px}
+
+  .lead{margin:22px 0 0;color:var(--muted);font-size:14.5px;line-height:1.85;max-width:62ch}
+
+  /* ===== 分类筛选 ===== */
+  .filters{display:flex;flex-wrap:wrap;gap:6px;margin:26px 0 0}
+  .chip{
+    cursor:pointer;font:inherit;font-size:12.5px;
+    color:var(--muted);background:transparent;
+    border:1px solid transparent;border-radius:999px;
+    padding:5px 13px;letter-spacing:.03em;
+    transition:color .2s,background .2s,border-color .2s;
+  }
+  .chip:hover{color:var(--ink);background:var(--khaki-soft)}
+  .chip[aria-pressed="true"]{color:var(--khaki);border-color:var(--line);background:var(--khaki-soft);font-weight:600}
+  .chip:focus-visible{outline:2px solid var(--khaki);outline-offset:2px}
+
+  /* ===== 卡片网格：桌面 3 列 → 自然形成 3+2 ===== */
+  #grid{
+    margin-top:22px;
+    display:grid;gap:14px;
+    grid-template-columns:repeat(3,1fr);
+  }
+
+  .card{
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:14px;
+    padding:20px 20px 18px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    text-decoration:none;color:inherit;
+    transition:border-color .2s ease,background .2s ease,
+               transform .2s ease,box-shadow .2s ease;
+  }
+  .card:hover{
+    background:#fffdf8;
+    border-color:rgba(122,104,66,.5);
+    transform:translateY(-2px);
+    box-shadow:0 6px 20px rgba(122,104,66,.10);
+  }
+  .card:focus-visible{outline:2px solid var(--khaki);outline-offset:3px}
+
+  /* 序号：替代图标，同时暗示推荐顺序 */
+  .no{
+    font-family:ui-serif,Georgia,serif;
+    font-size:13px;line-height:1.5;
+    color:var(--khaki);opacity:.55;
+    font-variant-numeric:tabular-nums;
+    padding-top:2px;
+  }
+
+  .head{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .head h2{
+    margin:0;
+    font-family:ui-serif,Georgia,"Songti SC","SimSun",serif;
+    font-size:17.5px;font-weight:600;letter-spacing:.02em;line-height:1.4;
+  }
+  .level{
+    flex:none;font-size:11.5px;letter-spacing:.06em;
+    color:var(--muted);opacity:.9;white-space:nowrap;
+  }
+
+  .desc{margin:7px 0 0;color:var(--muted);font-size:13.5px;line-height:1.7}
+
+  .meta{
+    margin-top:12px;display:flex;align-items:baseline;
+    justify-content:space-between;gap:10px;flex-wrap:wrap;
+  }
+  .tags{font-size:12px;color:var(--muted);opacity:.85;letter-spacing:.02em}
+  .go{font-size:12.5px;color:var(--khaki);font-weight:600;white-space:nowrap}
+  .card:hover .go{text-decoration:underline}
+
+  .empty{color:var(--muted);font-size:14px;padding:20px 0;grid-column:1/-1}
+
+  /* ===== 页脚 ===== */
+  footer{
+    margin-top:52px;padding-top:20px;
+    border-top:1px solid var(--line);
+    color:var(--muted);font-size:12.5px;line-height:1.9;
+  }
+  footer a{color:var(--khaki);text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  footer .disc{margin-top:6px;opacity:.75}
+
+  /* ===== 响应式 ===== */
+  @media (max-width:860px){
+    #grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:600px){
+    .wrap{padding:36px 18px 56px}
+    #grid{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important}
+    .card:hover{transform:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="bar">
+      <h1>Play<small id="subtitle">认知训练 · 眼动放松 · 模拟钢琴</small></h1>
+      <button id="langBtn" type="button">EN</button>
+    </div>
+    <p class="lead" id="lead"></p>
+  </header>
+
+  <nav class="filters" id="filters" aria-label="分类 / Categories"></nav>
+  <main id="grid"></main>
+
+  <footer>
+    <div id="footText"></div>
+    <div class="disc" id="discText"></div>
+  </footer>
+</div>
+
+<script>
+/* =========================================================
+   ① 界面文案
+   ========================================================= */
+const I18N = {
+  zh: {
+    docTitle: "Play · 认知训练与小游戏",
+    subtitle: "认知训练 · 眼动放松 · 模拟钢琴",
+    lead: "五款为「用脑」和「用眼」设计的小游戏。每局一两分钟，无需安装，无需登录，打开就能玩。",
+    all: "全部", cognitive: "认知训练", relax: "眼动放松", music: "音乐",
+    play: "开始玩",
+    empty: "这个分类下还没有游戏。",
+    foot: "源码托管在 GitHub · 使用 GitHub Pages 部署 · 不收集任何数据，成绩只存在你的浏览器里",
+    disclaimer: "「认知训练」「眼动放松」为游戏化的注意力与眼部活动练习，不构成医疗建议。",
+    langBtn: "EN",
+    langLabel: "Switch to English"
+  },
+  en: {
+    docTitle: "Play · Cognitive & Mini Games",
+    subtitle: "Cognitive training · Eye relaxation · Mini piano",
+    lead: "Five small games for your brain and your eyes. A session takes a minute or two — no install, no sign-up.",
+    all: "All", cognitive: "Cognitive", relax: "Eye relax", music: "Music",
+    play: "Play",
+    empty: "No games in this category yet.",
+    foot: "Source on GitHub · Deployed with GitHub Pages · Nothing is collected; scores stay in your browser",
+    disclaimer: "\"Cognitive training\" and \"eye relaxation\" here are gamified attention and eye-activity exercises only. They are not medical advice.",
+    langBtn: "中文",
+    langLabel: "切换到中文"
+  }
+};
+
+/* =========================================================
+   ② 游戏列表
+   —— 数组顺序 = 显示顺序（热身 → 加压 → 降温 → 自由玩）
+   —— 加游戏：复制一条改字段即可。url 用相对路径，末尾 "/" 指向该目录 index.html
+   ========================================================= */
+const GAMES = [
+  {
+    url: "./schultegrid/",
+    cat: "cognitive",
+    level: { zh: "入门", en: "Start" },
+    title: { zh: "舒尔特方格", en: "Schulte Grid" },
+    desc: {
+      zh: "按顺序找出所有数字，计时挑战视觉搜索速度。规则一秒上手。",
+      en: "Find every number in order. A timed challenge for visual search speed."
+    },
+    tags: { zh: "注意力 · 计时挑战", en: "Attention · Timed" }
+  },
+  {
+    url: "./digitspan/",
+    cat: "cognitive",
+    level: { zh: "进阶", en: "Intermediate" },
+    title: { zh: "数字序列记忆", en: "Digit Span" },
+    desc: {
+      zh: "数字接连闪过，按顺序复现出来，序列会越来越长。经典工作记忆范式。",
+      en: "Digits flash one by one — repeat them back in order as the sequence grows."
+    },
+    tags: { zh: "工作记忆 · 数字广度", en: "Working memory · Span" }
+  },
+  {
+    url: "./2-back/",
+    cat: "cognitive",
+    level: { zh: "挑战", en: "Challenge" },
+    title: { zh: "2-Back 工作记忆", en: "2-Back Memory" },
+    desc: {
+      zh: "判断当前刺激是否与两步之前相同。节奏会越来越快，这里是负荷最高的一款。",
+      en: "Does the current stimulus match the one two steps back? The heaviest load here."
+    },
+    tags: { zh: "更新记忆 · 速度", en: "Updating · Speed" }
+  },
+  {
+    url: "./eyesrelaxing/",
+    cat: "relax",
+    level: { zh: "放松", en: "Relax" },
+    title: { zh: "眼动放松", en: "Eye Relax" },
+    desc: {
+      zh: "跟着光点做平滑追踪与扫视练习。盯屏幕久了，让眼睛动一动。无输赢，不计时。",
+      en: "Follow the dot through smooth-pursuit and saccade exercises. No score, no timer."
+    },
+    tags: { zh: "平滑追踪 · 护眼", en: "Pursuit · Eye care" }
+  },
+  {
+    url: "./piano432hz/",
+    cat: "music",
+    level: { zh: "自由", en: "Free play" },
+    title: { zh: "432Hz 模拟钢琴", en: "432Hz Piano" },
+    desc: {
+      zh: "点一下就有声音，键盘或触屏都能弹。432Hz 调音，音色更柔和。",
+      en: "Tap to make sound — keyboard or touch. Tuned to 432Hz for a softer timbre."
+    },
+    tags: { zh: "音乐 · 触屏", en: "Music · Touch" }
+  }
+];
+
+/* =========================================================
+   ③ 渲染逻辑（一般不用动）
+   ========================================================= */
+const grid = document.getElementById("grid");
+const filtersEl = document.getElementById("filters");
+const leadEl = document.getElementById("lead");
+const subtitleEl = document.getElementById("subtitle");
+const footEl = document.getElementById("footText");
+const discEl = document.getElementById("discText");
+const langBtn = document.getElementById("langBtn");
+
+let lang = "zh";
+let filter = "all";
+
+const t = key => I18N[lang][key];
+
+function renderFilters() {
+  const cats = [
+    ["all", t("all")],
+    ["cognitive", t("cognitive")],
+    ["relax", t("relax")],
+    ["music", t("music")]
+  ];
+  filtersEl.replaceChildren(...cats.map(([key, label]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.dataset.cat = key;
+    b.textContent = label;
+    b.setAttribute("aria-pressed", String(filter === key));
+    return b;
+  }));
+}
+
+function renderCards() {
+  const list = GAMES.filter(g => filter === "all" || g.cat === filter);
+  const frag = document.createDocumentFragment();
+
+  if (!list.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = t("empty");
+    frag.appendChild(p);
+  }
+
+  list.forEach((g, i) => {
+    const a = document.createElement("a");
+    a.className = "card";
+    a.href = g.url;
+
+    const no = document.createElement("span");
+    no.className = "no";
+    no.setAttribute("aria-hidden", "true");
+    no.textContent = String(i + 1).padStart(2, "0");
+
+    const box = document.createElement("div");
+
+    const head = document.createElement("div");
+    head.className = "head";
+
+    const h2 = document.createElement("h2");
+    h2.textContent = g.title[lang];
+
+    const lv = document.createElement("span");
+    lv.className = "level";
+    lv.textContent = g.level[lang];
+
+    head.append(h2, lv);
+
+    const p = document.createElement("p");
+    p.className = "desc";
+    p.textContent = g.desc[lang];
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+
+    const tags = document.createElement("span");
+    tags.className = "tags";
+    tags.textContent = g.tags[lang];
+
+    const go = document.createElement("span");
+    go.className = "go";
+    go.textContent = t("play") + " →";
+
+    meta.append(tags, go);
+    box.append(head, p, meta);
+    a.append(no, box);
+    frag.appendChild(a);
+  });
+
+  grid.replaceChildren(frag);
+}
+
+function render() {
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  document.title = t("docTitle");
+  subtitleEl.textContent = t("subtitle");
+  leadEl.textContent = t("lead");
+  footEl.textContent = t("foot");
+  discEl.textContent = t("disclaimer");
+  langBtn.textContent = t("langBtn");
+  langBtn.setAttribute("aria-label", t("langLabel"));
+  renderFilters();
+  renderCards();
+}
+
+langBtn.addEventListener("click", () => {
+  lang = lang === "zh" ? "en" : "zh";
+  try { localStorage.setItem("play-lang", lang); } catch (e) {}
+  render();
+});
+
+filtersEl.addEventListener("click", e => {
+  const b = e.target.closest("button[data-cat]");
+  if (!b) return;
+  filter = b.dataset.cat;
+  renderFilters();
+  renderCards();
+});
+
+/* 初始语言：记住上次选择，否则按浏览器语言 */
+let saved = null;
+try { saved = localStorage.getItem("play-lang"); } catch (e) {}
+if (saved === "zh" || saved === "en") {
+  lang = saved;
+} else {
+  lang = (navigator.language || "").toLowerCase().startsWith("en") ? "en" : "zh";
+}
+
+render();
+</script>
+</body>
+</html>
