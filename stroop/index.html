@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#F2EFE8">
+<title>色词干扰</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{min-height:100%;margin:0}
+
+:root{
+  --bg:#F2EFE8;
+  --bg2:#E9E4D9;
+  --panel:#FFFFFF;
+  --ink:#33302B;
+  --ink-soft:#4A453C;
+  --ink-dim:#6F6858;
+  --line:#DED8CC;
+  --accent:#2F6B4F;
+  --ok:#2F8A5E;
+  --bad:#B54B45;
+}
+
+body{
+  background:linear-gradient(180deg,var(--bg) 0%,var(--bg) 55%,var(--bg2) 100%);
+  background-attachment:fixed;
+  color:var(--ink-soft);
+  font:15px/1.4 system-ui,-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
+  -webkit-user-select:none;user-select:none;
+  overscroll-behavior:none;
+  display:flex;justify-content:center;align-items:flex-start;
+  touch-action:manipulation;
+}
+
+.app{
+  width:min(92vw,420px);
+  min-height:100dvh;
+  display:flex;flex-direction:column;gap:10px;
+  padding:calc(12px + env(safe-area-inset-top)) 0 calc(14px + env(safe-area-inset-bottom));
+}
+
+header{display:flex;flex-direction:column;gap:8px;flex:0 0 auto}
+h1{margin:0;font-size:18px;font-weight:700;letter-spacing:1.4px;color:var(--ink)}
+.tagline{margin:2px 0 0;font-size:10.5px;color:var(--ink-dim);letter-spacing:.3px}
+
+.stats{display:flex;gap:6px}
+.stat{
+  flex:1;background:var(--panel);border:1px solid var(--line);
+  border-radius:11px;padding:6px 8px 5px;text-align:center;
+  box-shadow:0 2px 6px rgba(120,100,70,.07);
+}
+.stat span{display:block;font-size:9px;color:var(--ink-dim);letter-spacing:.7px}
+.stat b{font-size:16px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.stat b.warn{color:#C0562E}
+
+/* ---------- 出题区 ---------- */
+.stage{
+  position:relative;flex:1 1 auto;min-height:220px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:18px;
+  background:linear-gradient(180deg,#FFFFFF 0%,#FBF8F1 100%);
+  border:1px solid var(--line);
+  box-shadow:
+    0 10px 26px rgba(120,100,70,.12),
+    inset 0 1px 0 #FFFFFF;
+  overflow:hidden;
+}
+
+.word{
+  font-family:"Songti SC","STSong","Noto Serif SC",serif;
+  font-size:clamp(78px, 23vw, 116px);
+  font-weight:700;
+  line-height:1;
+  letter-spacing:2px;
+  transition:opacity .12s;
+}
+
+/* 繁简不一致时，右下角的小字简体 */
+.simp{
+  position:absolute;right:13px;bottom:9px;
+  font-size:13px;
+  color:#B3ACA1;
+  letter-spacing:.5px;
+  font-family:"Songti SC","STSong",serif;
+}
+.simp:empty{display:none}
+
+/* 反馈闪光 */
+.flash{
+  position:absolute;inset:0;pointer-events:none;
+  opacity:0;
+}
+.flash.ok{animation:flashOk .3s ease-out}
+.flash.bad{animation:flashBad .3s ease-out}
+@keyframes flashOk{
+  0%{opacity:0;background:rgba(47,138,94,.20)}
+  100%{opacity:0;background:rgba(47,138,94,0)}
+}
+@keyframes flashBad{
+  0%{opacity:0;background:rgba(181,75,69,.22)}
+  100%{opacity:0;background:rgba(181,75,69,0)}
+}
+
+/* ---------- 颜色按钮 ---------- */
+.pad{
+  flex:0 0 auto;
+  display:flex;gap:7px;justify-content:center;
+  padding:2px 0;
+}
+.cbtn{
+  flex:1 1 0;min-width:0;max-width:54px;
+  aspect-ratio:1 / 1;
+  border-radius:50%;
+  border:none;cursor:pointer;padding:0;
+  box-shadow:
+    inset 0 -3px 8px rgba(0,0,0,.22),
+    inset 0 2px 5px rgba(255,255,255,.34),
+    0 0 0 1px rgba(70,55,30,.14),
+    0 3px 8px rgba(90,75,50,.18);
+  transition:transform .08s;
+}
+.cbtn:active{transform:scale(.93)}
+
+/* ---------- 开始 / 结算 ---------- */
+.overlay{
+  position:absolute;inset:0;z-index:10;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:14px;text-align:center;padding:22px 20px;
+  background:rgba(250,247,240,.94);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  overflow-y:auto;
+}
+
+/* 结算页的颜色图鉴 */
+.legend{
+  display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;
+  margin-top:2px;font-size:11.5px;color:var(--ink-dim);
+  text-align:left;
+}
+.chip{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.chip i{
+  width:11px;height:11px;border-radius:50%;flex:0 0 auto;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.16);
+}
+.overlay[hidden]{display:none}
+.ov-title{font-size:22px;font-weight:700;letter-spacing:2px;color:var(--ink)}
+.ov-sub{font-size:12.5px;color:var(--ink-dim);line-height:1.8}
+.ov-sub b{color:var(--ink)}
+.ov-table{
+  display:grid;grid-template-columns:auto auto;gap:6px 18px;
+  font-size:13px;color:var(--ink-dim);
+  margin-top:4px;
+}
+.ov-table b{
+  color:var(--ink);font-variant-numeric:tabular-nums;
+  text-align:right;font-weight:700;
+}
+.btn{
+  padding:11px 32px;border:none;border-radius:999px;
+  font:600 14px/1 inherit;color:#FFFFFF;
+  background:linear-gradient(135deg,#3F8060,#2F6B4F);
+  cursor:pointer;
+  box-shadow:0 6px 16px rgba(47,107,79,.26);
+}
+.btn:active{filter:brightness(1.06)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div>
+      <h1>色词干扰</h1>
+      <p class="tagline">点出字写出来的颜色，不是字的意思</p>
+    </div>
+    <div class="stats">
+      <div class="stat"><span>得分</span><b id="score">0</b></div>
+      <div class="stat"><span>剩余</span><b id="clock">60</b></div>
+      <div class="stat"><span>连对</span><b id="combo">0</b></div>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="word" id="word">紅</div>
+    <div class="simp" id="simp">红</div>
+    <div class="flash" id="flash"></div>
+
+    <div class="overlay" id="overlay">
+      <div class="ov-title">色词干扰</div>
+      <div class="ov-sub">
+        屏幕上出现一个字，比如用<span style="color:#D93A2E;font-weight:700">红</span>色写的「綠」<br>
+        要点它<b>写出来的颜色</b>，不是它说的字
+      </div>
+      <button class="btn" id="startBtn">开始</button>
+    </div>
+  </div>
+
+  <div class="pad" id="pad"></div>
+
+</div>
+
+<script>
+"use strict";
+
+const $ = s => document.querySelector(s);
+
+/* ================= 参数 ================= */
+const GAME_MS = 60000;
+const CONGRUENT_RATE = 0.35;   // 一致试次占比
+const GAP_MS = 170;            // 答完到下一题
+const SCORE_HIT = 10;
+
+const KEY_BEST = 'stroop.best';
+
+/* ================= 颜色与字 ================= */
+/* 单字；simp 为空表示繁简同形；ancient 是传统色名；
+   stroke 用于纯白——不描边在象牙白底上会看不见 */
+const COLORS = [
+  { name:'紅', simp:'红', hex:'#D93A2E', ancient:'胭脂' },
+  { name:'黃', simp:'黄', hex:'#DEA411', ancient:'藤黃' },
+  { name:'藍', simp:'蓝', hex:'#2B6FCB', ancient:'靛青' },
+  { name:'綠', simp:'绿', hex:'#2E8B44', ancient:'松綠' },
+  { name:'黑', simp:'',   hex:'#2A2A2A', ancient:'玄色' },
+  { name:'紫', simp:'',   hex:'#8A4FB5', ancient:'紫棠' },
+  { name:'白', simp:'',   hex:'#FDFCFA', ancient:'月白', stroke:'#8E8577' }
+];
+
+/* ================= 状态 ================= */
+const S = {
+  running: false,
+  score: 0,
+  best: 0,
+  combo: 0,
+  maxCombo: 0,
+  endAt: 0,
+  rafId: null,
+  nextTimer: null,
+  q: null,           // 当前题 { wordIdx, inkIdx, congruent, startAt }
+  stats: {
+    conN: 0, conSum: 0,
+    incN: 0, incSum: 0,
+    right: 0, wrong: 0
+  }
+};
+
+const wordEl = $('#word');
+const simpEl = $('#simp');
+const flashEl = $('#flash');
+const overlayEl = $('#overlay');
+const scoreEl = $('#score');
+const clockEl = $('#clock');
+const comboEl = $('#combo');
+const padEl = $('#pad');
+const startBtn = $('#startBtn');
+
+/* ================= 工具 ================= */
+function readNum(k, d){
+  try {
+    const v = Number(localStorage.getItem(k));
+    return Number.isFinite(v) ? v : d;
+  } catch (e){ return d; }
+}
+function writeNum(k, v){
+  try { localStorage.setItem(k, String(v)); } catch (e){}
+}
+function randInt(n){ return Math.floor(Math.random() * n); }
+
+/* ================= 按钮 ================= */
+COLORS.forEach((c, i) => {
+  const b = document.createElement('button');
+  b.className = 'cbtn';
+  b.dataset.idx = String(i);
+
+  if (c.hex === '#FDFCFA'){
+    /* 白色按钮：加一点灰调，否则和背景连成一片 */
+    b.style.background =
+      'radial-gradient(circle at 34% 28%, #FFFFFF 0%, #F7F5F0 16%, #EFECE5 56%, #DCD7CC 100%)';
+  } else {
+    b.style.background =
+      'radial-gradient(circle at 34% 28%, #FFFFFF 0%, rgba(255,255,255,.35) 10%, '
+      + c.hex + ' 46%, ' + c.hex + ' 100%)';
+  }
+
+  b.setAttribute('aria-label', c.name);
+  padEl.appendChild(b);
+});
+
+padEl.addEventListener('pointerdown', e => {
+  const b = e.target.closest('.cbtn');
+  if (!b) return;
+  e.preventDefault();
+  answer(Number(b.dataset.idx));
+}, { passive: false });
+
+/* ================= 出题 ================= */
+function nextQuestion(){
+  if (!S.running) return;
+
+  const congruent = Math.random() < CONGRUENT_RATE;
+
+  let wordIdx = randInt(COLORS.length);
+  let inkIdx;
+
+  if (congruent){
+    inkIdx = wordIdx;
+  } else {
+    do { inkIdx = randInt(COLORS.length); } while (inkIdx === wordIdx);
+  }
+
+  S.q = {
+    wordIdx,
+    inkIdx,
+    congruent,
+    startAt: performance.now()
+  };
+
+  const ink = COLORS[inkIdx];
+
+  wordEl.textContent = COLORS[wordIdx].name;
+  wordEl.style.color = ink.hex;
+  /* 纯白必须描边，否则在浅底上看不见 */
+  wordEl.style.webkitTextStroke = ink.stroke ? ('2.4px ' + ink.stroke) : '';
+  simpEl.textContent = COLORS[wordIdx].simp || '';
+}
+
+/* ================= 作答 ================= */
+function answer(idx){
+  if (!S.running || !S.q) return;
+
+  const rt = performance.now() - S.q.startAt;
+  const correct = (idx === S.q.inkIdx);
+
+  /* 记录反应时，只统计正确答案 */
+  if (correct){
+    if (S.q.congruent){
+      S.stats.conN++; S.stats.conSum += rt;
+    } else {
+      S.stats.incN++; S.stats.incSum += rt;
+    }
+    S.stats.right++;
+    S.combo++;
+    if (S.combo > S.maxCombo) S.maxCombo = S.combo;
+    S.score += SCORE_HIT;
+  } else {
+    S.stats.wrong++;
+    S.combo = 0;
+  }
+
+  scoreEl.textContent = String(S.score);
+  comboEl.textContent = String(S.combo);
+
+  flashEl.classList.remove('ok', 'bad');
+  void flashEl.offsetWidth;
+  flashEl.classList.add(correct ? 'ok' : 'bad');
+
+  S.q = null;
+
+  clearTimeout(S.nextTimer);
+  S.nextTimer = setTimeout(nextQuestion, GAP_MS);
+}
+
+/* ================= 计时 ================= */
+function tick(t){
+  if (!S.running) return;
+
+  const left = S.endAt - t;
+  const sec = Math.max(0, Math.ceil(left / 1000));
+  clockEl.textContent = String(sec);
+  clockEl.classList.toggle('warn', sec <= 10);
+
+  if (left <= 0){ endGame(); return; }
+
+  S.rafId = requestAnimationFrame(tick);
+}
+
+/* ================= 开始 ================= */
+function start(){
+  clearTimeout(S.nextTimer);
+  if (S.rafId) cancelAnimationFrame(S.rafId);
+
+  S.running = true;
+  S.score = 0;
+  S.combo = 0;
+  S.maxCombo = 0;
+  S.q = null;
+  S.stats = { conN:0, conSum:0, incN:0, incSum:0, right:0, wrong:0 };
+
+  scoreEl.textContent = '0';
+  comboEl.textContent = '0';
+  clockEl.textContent = '60';
+  clockEl.classList.remove('warn');
+
+  overlayEl.hidden = true;
+
+  S.endAt = performance.now() + GAME_MS;
+  S.rafId = requestAnimationFrame(tick);
+
+  nextQuestion();
+}
+
+/* ================= 结束 ================= */
+function endGame(){
+  S.running = false;
+  if (S.rafId){ cancelAnimationFrame(S.rafId); S.rafId = null; }
+  clearTimeout(S.nextTimer);
+
+  clockEl.textContent = '0';
+
+  const st = S.stats;
+  const total = st.right + st.wrong;
+  const acc = total ? Math.round((st.right / total) * 100) : 0;
+
+  const conAvg = st.conN ? Math.round(st.conSum / st.conN) : 0;
+  const incAvg = st.incN ? Math.round(st.incSum / st.incN) : 0;
+  const effect = (st.conN && st.incN) ? (incAvg - conAvg) : null;
+
+  if (S.score > S.best){
+    S.best = S.score;
+    writeNum(KEY_BEST, S.best);
+  }
+
+  const rows = [
+    ['得分', S.score],
+    ['答对', st.right + ' / ' + total + '（' + acc + '%）'],
+    ['最长连对', S.maxCombo]
+  ];
+
+  if (effect !== null){
+    rows.push(['一致时', conAvg + ' ms']);
+    rows.push(['冲突时', incAvg + ' ms']);
+    rows.push(['干扰代价', (effect >= 0 ? '+' : '') + effect + ' ms']);
+  } else {
+    rows.push(['样本不足', '数据太少']);
+  }
+
+  const legendHtml = '<div class="legend">'
+    + COLORS.map(c =>
+        '<span class="chip"><i style="background:' + c.hex + '"></i>'
+        + c.name.replace('色', '') + ' · ' + c.ancient + '</span>'
+      ).join('')
+    + '</div>';
+
+  overlayEl.innerHTML =
+    '<div class="ov-title">' + (acc >= 90 ? '很稳' : '结束') + '</div>'
+    + '<div class="ov-table">'
+    + rows.map(([k, v]) => '<span>' + k + '</span><b>' + v + '</b>').join('')
+    + '</div>'
+    + '<div class="ov-sub" style="margin-top:2px;font-size:11.5px">' +
+        (effect !== null
+          ? '干扰代价 = 冲突时平均反应时 − 一致时平均反应时，越小抗干扰越强'
+          : '') +
+      '</div>'
+    + legendHtml
+    + '<button class="btn" id="againBtn">再来一局</button>';
+
+  overlayEl.hidden = false;
+  overlayEl.style.position = 'absolute';
+
+  const again = $('#againBtn');
+  if (again) again.addEventListener('click', start);
+}
+
+/* ================= 启动 ================= */
+startBtn.addEventListener('click', start);
+
+(function boot(){
+  S.best = readNum(KEY_BEST, 0);
+
+  /* 初始状态：先摆一个字，让界面不空 */
+  wordEl.textContent = COLORS[0].name;
+  wordEl.style.color = COLORS[2].hex;
+  wordEl.style.webkitTextStroke = '';
+  simpEl.textContent = COLORS[0].simp;
+})();
+</script>
+</body>
+</html>

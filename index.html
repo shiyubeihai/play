@@ -6,7 +6,7 @@
 <title>Play · 认知训练与小游戏</title>
 <meta name="description" content="认知训练、眼动放松、模拟钢琴 —— 打开即玩的浏览器小游戏合集。Browser mini-games you can play instantly.">
 <meta property="og:title" content="Play — 认知训练与小游戏">
-<meta property="og:description" content="舒尔特方格 · 数字序列记忆 · 2-Back · 眼动放松 · 432Hz 钢琴｜打开即玩">
+<meta property="og:description" content="擂辣椒 · 舒尔特方格 · 色词干扰 · 水果追踪 · 数字序列记忆 · 2-Back · 眼动放松 · 432Hz 钢琴｜打开即玩">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://shiyubeihai.github.io/play/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
@@ -183,7 +183,7 @@ const I18N = {
   zh: {
     docTitle: "Play · 认知训练与小游戏",
     subtitle: "认知训练 · 眼动放松 · 模拟钢琴",
-    lead: "五款为「用脑」和「用眼」设计的小游戏。每局一两分钟，无需安装，无需登录，打开就能玩。",
+    lead: "八款为「用脑」和「用眼」设计的小游戏。每局一两分钟，无需安装，无需登录，打开就能玩。",
     all: "全部", cognitive: "认知训练", relax: "眼动放松", music: "音乐",
     play: "开始玩",
     empty: "这个分类下还没有游戏。",
@@ -195,7 +195,7 @@ const I18N = {
   en: {
     docTitle: "Play · Cognitive & Mini Games",
     subtitle: "Cognitive training · Eye relaxation · Mini piano",
-    lead: "Five small games for your brain and your eyes. A session takes a minute or two — no install, no sign-up.",
+    lead: "Eight small games for your brain and your eyes. A session takes a minute or two — no install, no sign-up.",
     all: "All", cognitive: "Cognitive", relax: "Eye relax", music: "Music",
     play: "Play",
     empty: "No games in this category yet.",
@@ -213,6 +213,17 @@ const I18N = {
    ========================================================= */
 const GAMES = [
   {
+    url: "./chili/",
+    cat: "cognitive",
+    level: { zh: "入门", en: "Start" },
+    title: { zh: "擂辣椒", en: "Chili Whack" },
+    desc: {
+      zh: "辣椒一冒头就敲下去。越快越准，连击越长，得分越高。",
+      en: "Whack each chili the moment it pops up. Faster, cleaner hits build a longer combo."
+    },
+    tags: { zh: "反应速度 · 连击", en: "Reaction · Combo" }
+  },
+  {
     url: "./schultegrid/",
     cat: "cognitive",
     level: { zh: "入门", en: "Start" },
@@ -222,6 +233,28 @@ const GAMES = [
       en: "Find every number in order. A timed challenge for visual search speed."
     },
     tags: { zh: "注意力 · 计时挑战", en: "Attention · Timed" }
+  },
+  {
+    url: "./stroop/",
+    cat: "cognitive",
+    level: { zh: "进阶", en: "Intermediate" },
+    title: { zh: "色词干扰", en: "Stroop Test" },
+    desc: {
+      zh: "点出字写出来的颜色，不是字义。结算会算出干扰把你拖慢了多少毫秒。",
+      en: "Pick the ink colour, not the word. The result shows how many milliseconds the conflict cost you."
+    },
+    tags: { zh: "抑制控制 · Stroop", en: "Inhibition · Stroop" }
+  },
+  {
+    url: "./fruittrack/",
+    cat: "cognitive",
+    level: { zh: "挑战", en: "Challenge" },
+    title: { zh: "水果追踪", en: "Fruit Tracking" },
+    desc: {
+      zh: "记住被圈中的果子，等它们跑完再点出来。同色有两只，得认准是哪一只。",
+      en: "Watch which fruits get marked, then pick them out after they scatter. Each colour appears twice."
+    },
+    tags: { zh: "多目标追踪 · 注意", en: "Object tracking · Attention" }
   },
   {
     url: "./digitspan/",
