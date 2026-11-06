@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#E4EDF0">
+<title>涟漪</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+
+body{
+  background:
+    radial-gradient(135% 85% at 50% -12%,
+      #D6EDF1 0%,
+      #A6D7E2 38%,
+      #7FC5D2 72%,
+      #63B7C6 100%);
+  overflow:hidden;
+  -webkit-user-select:none;user-select:none;
+  touch-action:none;
+  font:15px/1.5 system-ui,-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
+}
+
+/* 越活跃越蓝的叠加层，opacity 由 JS 每帧控制 */
+.tint{
+  position:fixed;inset:0;
+  pointer-events:none;
+  background:radial-gradient(135% 85% at 50% -12%,
+    #8FC6D9 0%,
+    #4592B8 48%,
+    #1E6C92 100%);
+  opacity:0;
+  will-change:opacity;
+}
+
+#water{
+  position:fixed;inset:0;
+  display:block;
+  cursor:crosshair;
+}
+
+/* 顶部一层极淡的"水面反光" */
+.sheen{
+  position:fixed;left:0;right:0;top:0;height:38vh;
+  pointer-events:none;
+  background:linear-gradient(180deg, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 100%);
+  mix-blend-mode:soft-light;
+  opacity:.7;
+}
+
+/* 首次提示 */
+.hint{
+  position:fixed;left:50%;bottom:12vh;transform:translateX(-50%);
+  color:rgba(255,255,255,.92);
+  font-size:13.5px;
+  letter-spacing:.14em;
+  pointer-events:none;
+  opacity:.9;
+  transition:opacity .8s ease;
+  text-align:center;
+  text-shadow:0 1px 6px rgba(40,90,105,.35);
+}
+.hint.gone{opacity:0}
+
+/* 声音开关 */
+.sound{
+  position:fixed;right:calc(14px + env(safe-area-inset-right));
+  top:calc(14px + env(safe-area-inset-top));
+  width:38px;height:38px;
+  border-radius:50%;
+  border:1px solid rgba(130,158,170,.5);
+  background:rgba(255,255,255,.82);
+  color:#5C7A84;
+  font:600 11px/1 inherit;
+  cursor:pointer;
+  display:grid;place-items:center;
+  letter-spacing:.06em;
+  box-shadow:0 2px 8px rgba(120,150,165,.16);
+  transition:background .25s,color .25s,border-color .25s,opacity .4s;
+  opacity:.85;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+}
+.sound:hover{opacity:1}
+.sound.on{color:#3E7A88;border-color:rgba(90,150,165,.55);background:rgba(255,255,255,.8)}
+
+@media (prefers-reduced-motion:reduce){
+  .hint{transition:none}
+}
+</style>
+</head>
+<body>
+
+<div class="tint" id="tint"></div>
+<canvas id="water"></canvas>
+<div class="sheen"></div>
+<div class="hint" id="hint">轻 点 水 面</div>
+<button class="sound on" id="soundBtn" aria-label="声音开关">声</button>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById('water');
+const ctx = canvas.getContext('2d');
+const hintEl = document.getElementById('hint');
+const soundBtn = document.getElementById('soundBtn');
+const tintEl = document.getElementById('tint');
+
+const TAU = Math.PI * 2;
+
+/* 水面活跃度：涟漪越多越高，静下来慢慢回落 */
+let activity = 0;
+
+/* ================= 尺寸 ================= */
+let W = 0, H = 0, DPR = 1;
+
+/* 阳光金点 */
+let sparkles = [];
+
+function makeSparkles(){
+  const n = Math.round(W * H / 22000);
+  sparkles = [];
+  for (let i = 0; i < n; i++){
+    sparkles.push({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: 0.9 + Math.random() * 1.9,
+      speed: 0.32 + Math.random() * 0.95,
+      phase: Math.random() * TAU
+    });
+  }
+}
+
+function resize(){
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  makeSparkles();
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+/* ================= 涟漪 ================= */
+const ripples = [];
+const MAX_RIPPLES = 90;
+
+function addRipple(x, y, strength){
+  if (ripples.length >= MAX_RIPPLES) ripples.shift();
+
+  /* 每起一圈，水面就更"活"一点 */
+  activity = Math.min(1, activity + 0.085 * (0.5 + strength * 0.5));
+
+  ripples.push({
+    x: x,
+    y: y,
+    r: 5 + Math.random() * 3,
+    max: 78 + strength * 78 + Math.random() * 26,
+    speed: 0.85 + Math.random() * 0.45,
+    alpha: 1,
+    w: 2.4 * (0.7 + strength * 0.5)
+  });
+}
+
+function drawSparkles(t){
+  for (let i = 0; i < sparkles.length; i++){
+    const s = sparkles[i];
+    const k = 0.5 + 0.5 * Math.sin(t * s.speed + s.phase);
+    const a = 0.16 + 0.66 * k;
+    const r = s.r * (0.6 + 0.6 * k);
+
+    /* 外围柔光 */
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r * 3.8, 0, TAU);
+    ctx.fillStyle = 'rgba(255,220,120,' + (a * 0.20).toFixed(3) + ')';
+    ctx.fill();
+
+    /* 核心亮点 */
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, TAU);
+    ctx.fillStyle = 'rgba(255,238,150,' + (a * 0.95).toFixed(3) + ')';
+    ctx.fill();
+  }
+}
+
+function drawRipples(){
+  for (let i = ripples.length - 1; i >= 0; i--){
+    const r = ripples[i];
+
+    r.r += r.speed;
+    r.alpha = 1 - r.r / r.max;
+
+    if (r.alpha <= 0){
+      ripples.splice(i, 1);
+      continue;
+    }
+
+    const a = r.alpha;
+
+    /* 暗侧：让波有"凹下去"的感觉 */
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r + 1.6, 0, TAU);
+    ctx.strokeStyle = 'rgba(58,112,128,' + (a * 0.30).toFixed(3) + ')';
+    ctx.lineWidth = Math.max(0.8, r.w * a * 1.15);
+    ctx.stroke();
+
+    /* 主环（亮侧） */
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, TAU);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (a * 0.9).toFixed(3) + ')';
+    ctx.lineWidth = Math.max(0.9, r.w * a * 1.25);
+    ctx.stroke();
+
+    /* 内环，让波有厚度 */
+    const r2 = r.r * 0.62;
+    if (r2 > 2){
+      ctx.beginPath();
+      ctx.arc(r.x, r.y, r2, 0, TAU);
+      ctx.strokeStyle = 'rgba(255,255,255,' + (a * 0.46).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(0.7, r.w * 0.66 * a);
+      ctx.stroke();
+    }
+  }
+}
+
+let lastFrame = 0;
+
+function loop(now){
+  const t = now / 1000;
+  const dt = lastFrame ? Math.min(0.05, (now - lastFrame) / 1000) : 0.016;
+  lastFrame = now;
+
+  /* 每秒衰减到一半，帧率无关 */
+  activity *= Math.pow(0.5, dt);
+
+  ctx.clearRect(0, 0, W, H);
+  drawSparkles(t);
+  drawRipples();
+
+  tintEl.style.opacity = (activity * 0.42).toFixed(3);
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ================= 声音 ================= */
+const Sound = (() => {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  let actx = null, master = null;
+  let on = true;
+  let lastDropAt = 0;
+
+  function init(){
+    if (actx || !AC) return;
+    try {
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 0.9;
+      master.connect(actx.destination);
+    } catch (e){ actx = null; }
+  }
+
+  function unlock(){
+    init();
+    if (actx && actx.state === 'suspended') actx.resume().catch(() => {});
+  }
+
+  /* 水滴：短促正弦上滑 + 快速衰减 */
+  function drop(x){
+    if (!on) return;
+    init();
+    if (!actx) return;
+
+    const now = actx.currentTime;
+    if (now - lastDropAt < 0.06) return;   // 连点时降密度，避免糊成一片
+    lastDropAt = now;
+
+    const k = Math.max(0, Math.min(1, x / Math.max(1, W)));
+    const base = 480 + k * 300 + (Math.random() * 40 - 20);
+
+    const osc = actx.createOscillator();
+    const g = actx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(base, now);
+    osc.frequency.exponentialRampToValueAtTime(base * 1.85, now + 0.055);
+
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(0.16, now + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.19);
+
+    osc.connect(g);
+    g.connect(master);
+    osc.start(now);
+    osc.stop(now + 0.21);
+  }
+
+  /* ---- 水面底噪：粉红噪声 + 低通，缓慢起伏 ---- */
+  let amb = null;
+
+  function makePinkNoise(sec){
+    const len = Math.floor(actx.sampleRate * sec);
+    const buf = actx.createBuffer(1, len, actx.sampleRate);
+    const d = buf.getChannelData(0);
+
+    /* Paul Kellet 的粉红噪声近似 */
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < len; i++){
+      const w = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + w * 0.0555179;
+      b1 = 0.99332 * b1 + w * 0.0750759;
+      b2 = 0.96900 * b2 + w * 0.1538520;
+      b3 = 0.86650 * b3 + w * 0.3104856;
+      b4 = 0.55000 * b4 + w * 0.5329522;
+      b5 = -0.7616 * b5 - w * 0.0168980;
+      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+      b6 = w * 0.115926;
+    }
+    return buf;
+  }
+
+  function startAmbient(){
+    if (amb || !on) return;
+    init();
+    if (!actx) return;
+    if (actx.state === 'suspended') actx.resume().catch(() => {});
+
+    const src = actx.createBufferSource();
+    src.buffer = makePinkNoise(10);
+    src.loop = true;
+
+    const lp = actx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 760;
+    lp.Q.value = 0.6;
+
+    const g = actx.createGain();
+    g.gain.value = 0.0001;
+
+    /* 极慢的潮汐起伏 */
+    const lfo = actx.createOscillator();
+    const lfoGain = actx.createGain();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.07;
+    lfoGain.gain.value = 0.011;
+    lfo.connect(lfoGain);
+    lfoGain.connect(g.gain);
+    lfo.start();
+
+    src.connect(lp);
+    lp.connect(g);
+    g.connect(master);
+    src.start();
+
+    const now = actx.currentTime;
+    g.gain.linearRampToValueAtTime(0.028, now + 2.2);
+
+    amb = { src: src, g: g, lfo: lfo };
+  }
+
+  function stopAmbient(){
+    if (!amb || !actx) return;
+    const now = actx.currentTime;
+    try {
+      amb.g.gain.cancelScheduledValues(now);
+      amb.g.gain.setValueAtTime(amb.g.gain.value, now);
+      amb.g.gain.linearRampToValueAtTime(0.0001, now + 0.9);
+    } catch (e){}
+    const ref = amb;
+    amb = null;
+    setTimeout(() => {
+      try { ref.src.stop(); ref.lfo.stop(); } catch (e){}
+    }, 1000);
+  }
+
+  return {
+    drop: drop,
+    unlock: unlock,
+    set(v){
+      on = !!v;
+      if (on) startAmbient();
+      else stopAmbient();
+    },
+    isOn(){ return on; },
+    ensureAmbient(){ if (on) startAmbient(); }
+  };
+})();
+
+/* ================= 交互 ================= */
+let dragging = false;
+let lastX = 0, lastY = 0;
+let hintGone = false;
+
+function hideHint(){
+  if (hintGone) return;
+  hintGone = true;
+  hintEl.classList.add('gone');
+}
+
+canvas.addEventListener('pointerdown', e => {
+  Sound.unlock();
+  Sound.ensureAmbient();   // 首次交互后起底噪
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+
+  addRipple(e.clientX, e.clientY, 1);
+  Sound.drop(e.clientX);
+  hideHint();
+
+  try { canvas.setPointerCapture(e.pointerId); } catch (err){}
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+
+  /* 每移动约 34px 补一个小涟漪，形成连续水纹 */
+  if (dx * dx + dy * dy >= 1156){
+    lastX = e.clientX;
+    lastY = e.clientY;
+    addRipple(e.clientX, e.clientY, 0.5);
+    Sound.drop(e.clientX);
+  }
+});
+
+function endDrag(){ dragging = false; }
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+canvas.addEventListener('pointerleave', endDrag);
+
+/* 声音开关 */
+soundBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  Sound.unlock();
+  const next = !Sound.isOn();
+  Sound.set(next);
+  soundBtn.classList.toggle('on', next);
+  soundBtn.textContent = next ? '声' : '静';
+});
+
+/* 页面可见性：切后台时低通轻微关闭，回来恢复 */
+document.addEventListener('visibilitychange', () => {
+  if (!Sound.isOn()) return;
+  if (document.hidden) return;
+  Sound.ensureAmbient();
+});
+</script>
+</body>
+</html>

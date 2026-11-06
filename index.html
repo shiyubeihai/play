@@ -6,7 +6,7 @@
 <title>Play · 认知训练与小游戏</title>
 <meta name="description" content="认知训练、眼动放松、模拟钢琴 —— 打开即玩的浏览器小游戏合集。Browser mini-games you can play instantly.">
 <meta property="og:title" content="Play — 认知训练与小游戏">
-<meta property="og:description" content="擂辣椒 · 舒尔特方格 · 色词干扰 · 水果追踪 · 数字序列记忆 · 2-Back · 眼动放松 · 432Hz 钢琴｜打开即玩">
+<meta property="og:description" content="擂辣椒 · 舒尔特方格 · 色词干扰 · 水果追踪 · 数字序列记忆 · 2-Back · 眼动放松 · 涟漪 · 432Hz 钢琴｜打开即玩">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://shiyubeihai.github.io/play/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
@@ -183,8 +183,8 @@ const I18N = {
   zh: {
     docTitle: "Play · 认知训练与小游戏",
     subtitle: "认知训练 · 眼动放松 · 模拟钢琴",
-    lead: "八款为「用脑」和「用眼」设计的小游戏。每局一两分钟，无需安装，无需登录，打开就能玩。",
-    all: "全部", cognitive: "认知训练", relax: "眼动放松", music: "音乐",
+    lead: "九款为「用脑」和「用眼」设计的小游戏。每局一两分钟，无需安装，无需登录，打开就能玩。",
+    all: "全部", cognitive: "认知训练", relax: "放松", music: "音乐",
     play: "开始玩",
     empty: "这个分类下还没有游戏。",
     foot: "源码托管在 GitHub · 使用 GitHub Pages 部署 · 不收集任何数据，成绩只存在你的浏览器里",
@@ -195,8 +195,8 @@ const I18N = {
   en: {
     docTitle: "Play · Cognitive & Mini Games",
     subtitle: "Cognitive training · Eye relaxation · Mini piano",
-    lead: "Eight small games for your brain and your eyes. A session takes a minute or two — no install, no sign-up.",
-    all: "All", cognitive: "Cognitive", relax: "Eye relax", music: "Music",
+    lead: "Nine small games for your brain and your eyes. A session takes a minute or two — no install, no sign-up.",
+    all: "All", cognitive: "Cognitive", relax: "Relax", music: "Music",
     play: "Play",
     empty: "No games in this category yet.",
     foot: "Source on GitHub · Deployed with GitHub Pages · Nothing is collected; scores stay in your browser",
@@ -288,6 +288,17 @@ const GAMES = [
       en: "Follow the dot through smooth-pursuit and saccade exercises. No score, no timer."
     },
     tags: { zh: "平滑追踪 · 护眼", en: "Pursuit · Eye care" }
+  },
+  {
+    url: "./ripple/",
+    cat: "relax",
+    level: { zh: "自由", en: "Free play" },
+    title: { zh: "涟漪", en: "Ripple" },
+    desc: {
+      zh: "点一下水面，涟漪散开，水滴轻轻响一声。没有分数，没有计时，想点多久点多久。",
+      en: "Tap the water and watch ripples spread, each with a soft drop of sound. No score, no timer."
+    },
+    tags: { zh: "治愈 · 无目标", en: "Ambient · No goal" }
   },
   {
     url: "./piano432hz/",
