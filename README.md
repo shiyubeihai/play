@@ -1,4 +1,4 @@
-[请我喝杯柠檬水](https://mbd.pub/o/author-bW2ZnGtkZQ==/work)
+[Support|请我喝杯柠檬水](https://mbd.pub/o/author-bW2ZnGtkZQ==/work)
 
 # play
 认知训练 · 眼动放松 · 模拟钢琴｜打开即玩的浏览器小游戏合集 
