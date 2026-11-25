@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F4F1EA">
+<title>四色</title>
+<style>
+  :root{
+    --paper:#F4F1EA;
+    --card:#FFFDF8;
+    --ink:#2E2A24;
+    --soft:#8A8177;
+    --line:#E2DACB;
+    --c0:#C0392B;   /* 朱砂 */
+    --c1:#D8A11C;   /* 藤黄 */
+    --c2:#5B4A6B;   /* 黛紫 */
+    --c3:#2B6FCB;   /* 靛青 */
+    --empty:#EDE7D9;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:radial-gradient(700px 420px at 50% -10%, #FFFDF7 0%, var(--paper) 60%);
+    color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:max(14px, env(safe-area-inset-top)) 12px max(18px, env(safe-area-inset-bottom));
+    -webkit-user-select:none; user-select:none;
+  }
+  .wrap{ width:100%; max-width:460px; }
+
+  header{ display:flex; align-items:baseline; gap:10px; margin-bottom:2px; }
+  h1{
+    font-family:"Songti SC","SimSun","STSong",serif;
+    font-size:24px; letter-spacing:.16em; margin:0; color:var(--ink);
+  }
+  h1 em{ font-style:normal; font-size:12px; letter-spacing:.3em; color:var(--soft); margin-left:2px; }
+  .hd{ margin-left:auto; text-align:right; line-height:1.5; }
+  .lv{ font-size:12px; color:var(--soft); letter-spacing:.06em; }
+  .lv b{ color:var(--ink); font-size:13px; }
+  .total{ font-size:11.5px; color:var(--soft); letter-spacing:.04em; }
+  .total b{ color:var(--ink); font-size:13px; font-variant-numeric:tabular-nums; }
+
+  .limitTag{
+    display:inline-block; font-size:10px; color:#8C5A2B; letter-spacing:.05em;
+    border:1px solid #DCC38F; background:#FBF2DD; border-radius:4px; padding:0 5px;
+    margin-left:4px; vertical-align:1px;
+  }
+
+  .status{ font-size:12px; color:var(--soft); margin:4px 0 8px; min-height:17px; letter-spacing:.02em; }
+  .status b{ color:var(--ink); }
+  .hint{ font-size:11.5px; color:#B8852B; margin:-2px 0 8px; letter-spacing:.03em; }
+  .hint:empty{ display:none; }
+
+  .stage{ position:relative; width:100%; aspect-ratio:1 / 1; }
+  canvas{ width:100%; height:100%; display:block; border-radius:16px; }
+  .shake{ animation:shake .26s; }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-5px); }
+    75%{ transform:translateX(5px); }
+  }
+
+  .palette{ display:flex; gap:10px; justify-content:center; margin:14px 0 4px; }
+  .sw{
+    width:56px; border:none; background:transparent; padding:0;
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    font-family:inherit; cursor:pointer;
+  }
+  .sw i{
+    display:block; width:44px; height:44px; border-radius:50%;
+    border:2px solid transparent; box-shadow:0 1px 4px rgba(90,70,40,.18);
+    transition:transform .12s, box-shadow .12s, border-color .12s;
+  }
+  .sw span{ font-size:10.5px; color:var(--soft); letter-spacing:.05em; }
+  .sw.sel i{ border-color:var(--ink); transform:translateY(-2px); box-shadow:0 4px 10px rgba(60,45,25,.24); }
+  .sw.sel span{ color:var(--ink); }
+
+  .bar{ display:flex; gap:8px; margin-top:8px; justify-content:center; }
+  .btn{
+    border:1px solid var(--line); background:var(--card); color:var(--soft);
+    border-radius:10px; padding:8px 16px; font-size:12.5px; font-family:inherit;
+    font-weight:600; cursor:pointer;
+  }
+  .btn:hover{ background:#F7F1E4; color:var(--ink); }
+  .btn.answer{ color:#8C5A2B; border-color:#DEC79B; background:#FBF2DC; }
+  .btn.answer:hover{ background:#F7EACB; color:#7A4E22; }
+
+  .ansBar{
+    display:none; align-items:center; gap:10px;
+    margin:10px 2px 0; padding:9px 12px;
+    background:#FBF2DD; border:1px solid #E4D2A8; border-radius:10px;
+  }
+  .ansBar.on{ display:flex; }
+  .ansBar span{ flex:1; font-size:10.5px; line-height:1.55; color:#8C5A2B; letter-spacing:.02em; }
+  .ansBar .btn{ flex:0 0 auto; padding:7px 16px; border-radius:9px; font-size:12px; }
+
+  .over{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    background:rgba(244,241,234,.975); border-radius:16px;
+  }
+  .over.on{ display:flex; }
+  .over .box{ text-align:center; }
+  .over h2{
+    font-family:"Songti SC","SimSun",serif; font-size:22px; letter-spacing:.14em;
+    color:var(--ink); margin:0 0 10px;
+  }
+  .over .score{ margin-bottom:8px; }
+  .over .score b{
+    display:block; font-size:40px; line-height:1.1; color:var(--ink);
+    font-variant-numeric:tabular-nums;
+    font-family:"Songti SC","SimSun",serif;
+  }
+  .over .score i{ font-style:normal; font-size:10.5px; color:var(--soft); letter-spacing:.2em; }
+  .over .detail{ font-size:11px; color:var(--soft); line-height:1.75; margin-bottom:12px; }
+  .over .detail b{ color:var(--ink); font-weight:600; }
+  .over .nums{ display:flex; gap:20px; justify-content:center; margin-bottom:12px; }
+  .over .nums div{ font-size:10.5px; color:var(--soft); }
+  .over .nums b{ display:block; font-size:20px; color:var(--ink); margin-bottom:2px; font-variant-numeric:tabular-nums; }
+  .over button{
+    border:1px solid var(--ink); background:var(--ink); color:#fff;
+    border-radius:11px; padding:11px 30px; font-size:14px; font-weight:700;
+    font-family:inherit; letter-spacing:.1em; cursor:pointer;
+  }
+
+  .btn.primary{ border-color:var(--ink); background:var(--ink); color:#fff; }
+  .btn:disabled{ opacity:.4; cursor:default; }
+
+  .mask{
+    position:fixed; inset:0; z-index:30; display:none;
+    align-items:flex-end; justify-content:center;
+    background:rgba(40,34,26,.38);
+  }
+  .mask.on{ display:flex; }
+  .sheet{
+    width:100%; max-width:460px; max-height:84vh; overflow:auto;
+    background:var(--card); border-radius:18px 18px 0 0;
+    padding:16px 18px calc(16px + env(safe-area-inset-bottom));
+    box-shadow:0 -8px 30px rgba(60,45,25,.2);
+    animation:up .22s ease-out;
+  }
+  @keyframes up{ from{ transform:translateY(26px); opacity:.35; } to{ transform:none; opacity:1; } }
+  .sheet h3{ margin:0; font-size:15px; letter-spacing:.14em; color:var(--ink); }
+  .sec{ font-size:11px; color:var(--soft); letter-spacing:.12em; margin:14px 0 4px; }
+  .rank{ list-style:none; margin:0; padding:0; }
+  .rank li{
+    display:flex; gap:10px; align-items:baseline; padding:7px 0;
+    border-bottom:1px dashed var(--line); font-size:12.5px;
+  }
+  .rank li:last-child{ border-bottom:none; }
+  .rank .no{ width:18px; color:var(--soft); font-variant-numeric:tabular-nums; }
+  .rank .mid{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .rank .main{ font-variant-numeric:tabular-nums; }
+  .rank .sub{ font-size:10.5px; color:var(--soft); }
+  .rank .v{ margin-left:auto; font-weight:700; font-variant-numeric:tabular-nums; }
+  .rank .empty{ color:var(--soft); font-size:11.5px; border-bottom:none; padding-left:28px; }
+  .sheetBar{ display:flex; gap:8px; margin-top:16px; }
+  .sheetBar .btn{ flex:1; padding:10px 0; }
+
+  .foot{ font-size:10.5px; color:#BDB4A7; line-height:1.8; margin-top:12px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>四色<em>FOUR</em></h1>
+    <div class="hd">
+      <div class="lv">第 <b id="lvNow">1</b> / 100 关</div>
+      <div class="total">累计 <b id="runScore">0</b></div>
+    </div>
+  </header>
+
+  <div class="status" id="status">选一支颜色，点地图上的地区</div>
+  <div class="hint" id="hint"></div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+    <div class="over" id="over">
+      <div class="box">
+        <h2 id="overTitle">过关</h2>
+        <div class="score"><b id="oScore">1000</b><i id="oScoreLabel">本关得分</i></div>
+        <div class="nums">
+          <div><b id="oTime">0</b><span id="oTimeLabel">用时（秒）</span></div>
+          <div><b id="oErr">0</b><span id="oErrLabel">涂错次数</span></div>
+        </div>
+        <div class="detail" id="oDetail"></div>
+        <button id="btnNext" type="button">下一关</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ansBar" id="ansBar">
+    <span id="ansNote"></span>
+    <button class="btn primary" id="btnAnsNext" type="button">下一关</button>
+  </div>
+
+  <div class="palette" id="palette"></div>
+
+  <div class="bar">
+    <button class="btn" id="btnReset" type="button">重来</button>
+    <button class="btn" id="btnNew" type="button">换一张地图</button>
+    <button class="btn answer" id="btnAns" type="button" style="display:none">三色答案</button>
+    <button class="btn" id="btnBoard" type="button">榜单</button>
+  </div>
+
+  <div class="foot">相邻地区不能同色 · 每局 100 关 · 第 72 关起只给三种颜色</div>
+</div>
+
+<div class="mask" id="mask">
+  <div class="sheet">
+    <h3>榜单</h3>
+    <div class="sec">本局最高三关</div>
+    <ol class="rank" id="listRun"></ol>
+    <div class="sec">累计得分 · 前十</div>
+    <ol class="rank" id="listHall"></ol>
+    <div class="sheetBar">
+      <button class="btn" id="btnEndRun" type="button">结算本局</button>
+      <button class="btn primary" id="btnClose" type="button">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ================= 参数 ================= */
+  var COLORS = ['#C0392B', '#D8A11C', '#5B4A6B', '#2B6FCB'];
+  var NAMES  = ['朱砂', '藤黄', '黛紫', '靛青'];
+  var MAX_LEVEL = 100;                // 一局 100 关
+  var LIMIT_FROM = 72;                // 第 72 关起只给三色
+  var MAP_SIZE = 1000;                // 内部坐标 1000×1000
+
+  // 第 1–3 关 10/14/18，之后每 4 关 +1，封顶 30
+  function levelSize(lv){
+    if (lv <= 3) return 10 + (lv - 1) * 4;
+    return Math.min(30, 18 + Math.ceil((lv - 3) / 4));
+  }
+
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var stage = document.getElementById('stage');
+
+  var G = {
+    level: 1,
+    regions: [],      // { poly, neighbors:[], color:-1 }
+    solution: [],     // 生成时的合法上色（不展示）
+    land: [],
+    sel: 0,
+    startAt: 0,
+    chi: 4,
+    target: 0,        // 本关均衡最优（最大色块）
+    errors: 0,
+    restarts: 0,      // 本关重来次数（看答案的门槛）
+    over: false,
+    limited: false,   // 限色关
+    ended: false,     // 本局是否已结算
+    mode: 'level',    // level | reveal | summary
+    sol3: null,       // 三色解（可三色时才有）
+    adj: [],          // 邻接表，算答案唯一性用
+    reached: 0,       // 本局到过的最高关
+    scores: {}        // 本局每关最好成绩 {关号: 分}
+  };
+
+  /* ================= 几何 ================= */
+  function pointInPoly(x, y, poly){
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++){
+      var xi = poly[i][0], yi = poly[i][1];
+      var xj = poly[j][0], yj = poly[j][1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+
+  // 保留 a*x + b*y + c <= 0 的部分
+  function clipHalf(poly, a, b, c){
+    var out = [];
+    for (var i = 0; i < poly.length; i++){
+      var p = poly[i], q = poly[(i + 1) % poly.length];
+      var dp = a * p[0] + b * p[1] + c;
+      var dq = a * q[0] + b * q[1] + c;
+      if (dp <= 0) out.push(p);
+      if ((dp < 0 && dq > 0) || (dp > 0 && dq < 0)){
+        var t = dp / (dp - dq);
+        out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+      }
+    }
+    return out;
+  }
+
+  function makeLand(){
+    var cx = MAP_SIZE / 2, cy = MAP_SIZE / 2;
+    var base = MAP_SIZE * 0.42;
+    var p1 = Math.random() * Math.PI * 2, p2 = Math.random() * Math.PI * 2;
+    var a1 = 0.06 + Math.random() * 0.06;
+    var a2 = 0.03 + Math.random() * 0.05;
+    var pts = [];
+    var N = 60;
+    for (var i = 0; i < N; i++){
+      var a = i / N * Math.PI * 2;
+      var r = base * (1 + a1 * Math.sin(a * 3 + p1) + a2 * Math.sin(a * 5 + p2));
+      pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]);
+    }
+    return pts;
+  }
+
+  function randomPointsIn(poly, n, minDist){
+    var out = [], tries = 0;
+    var minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+    poly.forEach(function(p){
+      minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]);
+      miny = Math.min(miny, p[1]); maxy = Math.max(maxy, p[1]);
+    });
+    while (out.length < n && tries < 4000){
+      tries++;
+      var x = minx + Math.random() * (maxx - minx);
+      var y = miny + Math.random() * (maxy - miny);
+      if (!pointInPoly(x, y, poly)) continue;
+      var ok = true;
+      for (var i = 0; i < out.length; i++){
+        var dx = out[i][0] - x, dy = out[i][1] - y;
+        if (dx * dx + dy * dy < minDist * minDist){ ok = false; break; }
+      }
+      if (ok) out.push([x, y]);
+    }
+    return out;
+  }
+
+  function buildGraph(cells, seeds, land){
+    var n = cells.length;
+    var adj = [];
+    for (var i = 0; i < n; i++) adj.push({});
+
+    // 用栅格近似判邻接：共享一段边界才算相邻（只查四邻域）
+    var R = 220;
+    var minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+    land.forEach(function(p){
+      minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]);
+      miny = Math.min(miny, p[1]); maxy = Math.max(maxy, p[1]);
+    });
+    var w = maxx - minx, h = maxy - miny;
+    var grid = new Int16Array(R * R);
+    for (var gy = 0; gy < R; gy++){
+      for (var gx = 0; gx < R; gx++){
+        var x = minx + (gx + 0.5) / R * w;
+        var y = miny + (gy + 0.5) / R * h;
+        if (!pointInPoly(x, y, land)){ grid[gy * R + gx] = -1; continue; }
+        var best = -1, bd = Infinity;
+        for (var k = 0; k < n; k++){
+          var dx = seeds[k][0] - x, dy = seeds[k][1] - y;
+          var d = dx * dx + dy * dy;
+          if (d < bd){ bd = d; best = k; }
+        }
+        grid[gy * R + gx] = best;
+      }
+    }
+    for (var y2 = 0; y2 < R; y2++){
+      for (var x2 = 0; x2 < R; x2++){
+        var a = grid[y2 * R + x2];
+        if (a < 0) continue;
+        if (x2 + 1 < R){
+          var b1 = grid[y2 * R + x2 + 1];
+          if (b1 >= 0 && b1 !== a){ adj[a][b1] = 1; adj[b1][a] = 1; }
+        }
+        if (y2 + 1 < R){
+          var b2 = grid[(y2 + 1) * R + x2];
+          if (b2 >= 0 && b2 !== a){ adj[a][b2] = 1; adj[b2][a] = 1; }
+        }
+      }
+    }
+    return adj.map(function(o){ return Object.keys(o).map(Number); });
+  }
+
+  // 回溯找一套合法四色（先有解，再挖空）
+  function solve(adj, n, k){
+    var color = new Array(n).fill(-1);
+    var order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+    // 度数大的先决定，快
+    order.sort(function(a, b){ return adj[b].length - adj[a].length; });
+
+    function ok(idx, c){
+      var nb = adj[idx];
+      for (var i = 0; i < nb.length; i++) if (color[nb[i]] === c) return false;
+      return true;
+    }
+    function go(pos){
+      if (pos === n) return true;
+      var idx = order[pos];
+      for (var c = 0; c < k; c++){
+        if (!ok(idx, c)) continue;
+        color[idx] = c;
+        if (go(pos + 1)) return true;
+        color[idx] = -1;
+      }
+      return false;
+    }
+    return go(0) ? color : null;
+  }
+
+  // 用 k 种颜色时，最大色块最少能压到几块
+  // 颜色名可互换：只按「首次出现」的顺序引入新色，砍掉 k! 份重复搜索
+  // initBest 是已知可行解的最大色块，用来收紧上界
+  function minMaxClass(adj, n, k, initBest){
+    var order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+    order.sort(function(a, b){ return adj[b].length - adj[a].length; });
+
+    var color = new Array(n).fill(-1);
+    var cnt = new Array(k).fill(0);
+    var lb = Math.ceil(n / k);
+    var best = (initBest && initBest >= lb && initBest <= n) ? initBest : n + 1;
+    var stop = false;
+
+    function ok(idx, c){
+      var nb = adj[idx];
+      for (var i = 0; i < nb.length; i++) if (color[nb[i]] === c) return false;
+      return true;
+    }
+    function go(pos, usedK){
+      if (stop) return;
+      if (pos === n){
+        var m = 0;
+        for (var i = 0; i < k; i++) if (cnt[i] > m) m = cnt[i];
+        if (m < best){
+          best = m;
+          if (best <= lb) stop = true;   // 到理论下界，不必再找
+        }
+        return;
+      }
+      var idx = order[pos];
+      var lim = Math.min(usedK + 1, k);
+      for (var c = 0; c < lim; c++){
+        if (cnt[c] + 1 >= best) continue;
+        if (!ok(idx, c)) continue;
+        color[idx] = c; cnt[c]++;
+        go(pos + 1, c === usedK ? usedK + 1 : usedK);
+        color[idx] = -1; cnt[c]--;
+        if (stop) return;
+      }
+    }
+    go(0, 0);
+    return best > n ? null : best;
+  }
+
+  // 数 k 色方案（颜色名互换算同一种），数到 cap 就停
+  // 返回 cap 表示「至少 cap 种」；maxNodes 防个别图搜太久
+  function colorCount(adj, n, k, cap, maxNodes){
+    var order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+    order.sort(function(a, b){ return adj[b].length - adj[a].length; });
+
+    var color = new Array(n).fill(-1);
+    var found = 0, nodes = 0, stop = false, truncated = false;
+
+    function ok(idx, c){
+      var nb = adj[idx];
+      for (var i = 0; i < nb.length; i++) if (color[nb[i]] === c) return false;
+      return true;
+    }
+    function go(pos, usedK){
+      if (stop) return;
+      if (++nodes > maxNodes){ truncated = true; stop = true; return; }
+      if (pos === n){
+        found++;
+        if (found >= cap) stop = true;
+        return;
+      }
+      var idx = order[pos];
+      var lim = Math.min(usedK + 1, k);
+      for (var c = 0; c < lim; c++){
+        if (!ok(idx, c)) continue;
+        color[idx] = c;
+        go(pos + 1, c === usedK ? usedK + 1 : usedK);
+        color[idx] = -1;
+        if (stop) return;
+      }
+    }
+    go(0, 0);
+    return { count: found, truncated: truncated };
+  }
+
+  // 在陆地里铺三角点阵；间距二分，保证点数不超过 n
+  function latticeAt(land, sp){
+    var minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+    for (var i = 0; i < land.length; i++){
+      var p = land[i];
+      minx = Math.min(minx, p[0]); maxx = Math.max(maxx, p[0]);
+      miny = Math.min(miny, p[1]); maxy = Math.max(maxy, p[1]);
+    }
+    var pts = [], row = 0;
+    for (var y = miny; y <= maxy + sp; y += sp * 0.866){
+      var off = (row % 2) * sp * 0.5;
+      for (var x = minx - sp + off; x <= maxx + sp; x += sp){
+        if (pointInPoly(x, y, land)) pts.push([x, y]);
+      }
+      row++;
+    }
+    return pts;
+  }
+
+  function latticeSeeds(land, n, jitter, area){
+    var sp0 = Math.sqrt(area / (n * 0.866));
+    var lo = 0.55, hi = 2.6, pick = null, sp = sp0;
+    for (var it = 0; it < 18; it++){
+      var mid = (lo + hi) / 2;
+      var pts = latticeAt(land, sp0 * mid);
+      if (pts.length > n){
+        lo = mid;
+      } else {
+        pick = pts; sp = sp0 * mid;
+        if (pts.length === n) break;
+        hi = mid;
+      }
+    }
+    if (!pick) pick = latticeAt(land, sp0 * 1.5);
+
+    var out = [], half = jitter * sp * 0.5;
+    for (var i = 0; i < pick.length; i++){
+      var px = pick[i][0] + (Math.random() - 0.5) * 2 * half;
+      var py = pick[i][1] + (Math.random() - 0.5) * 2 * half;
+      if (pointInPoly(px, py, land)) out.push([px, py]);
+    }
+    return out;
+  }
+
+  // three=true：限色关，用点阵撒种，只接受三色可解
+  function buildMap(n, three){
+    var maxTries = three ? 60 : 30;
+    for (var attempt = 0; attempt < maxTries; attempt++){
+      var land = makeLand();
+      var area = Math.abs(polyArea(land));
+      var seeds, minKeep;
+      if (three){
+        seeds = latticeSeeds(land, n, attempt < 30 ? 0.16 : 0.0, area);
+        minKeep = n - 3;
+      } else {
+        seeds = randomPointsIn(land, n, Math.sqrt(area / n) * 0.55);
+        if (seeds.length < n) continue;
+        minKeep = n - 1;
+      }
+      var m = seeds.length;
+      if (m < minKeep) continue;
+
+      var cells = [];
+      var keep = [];
+      for (var s = 0; s < m; s++){
+        var poly = land.slice();
+        for (var t = 0; t < m && poly.length; t++){
+          if (t === s) continue;
+          var a = 2 * (seeds[t][0] - seeds[s][0]);
+          var b = 2 * (seeds[t][1] - seeds[s][1]);
+          var c = (seeds[s][0] * seeds[s][0] + seeds[s][1] * seeds[s][1])
+                - (seeds[t][0] * seeds[t][0] + seeds[t][1] * seeds[t][1]);
+          poly = clipHalf(poly, a, b, c);
+        }
+        if (poly.length >= 3 && Math.abs(polyArea(poly)) > area / n * 0.18){
+          cells.push(poly);
+          keep.push(seeds[s]);
+        }
+      }
+      if (cells.length < minKeep) continue;
+
+      var adj = buildGraph(cells, keep, land);
+      var sol = solve(adj, cells.length, three ? 3 : 4);
+      if (!sol) continue;
+
+      return {
+        land: land,
+        regions: cells.map(function(poly, idx){
+          return { poly: poly, neighbors: adj[idx], color: -1 };
+        }),
+        solution: sol
+      };
+    }
+    return null;
+  }
+
+  function polyArea(poly){
+    var s = 0;
+    for (var i = 0; i < poly.length; i++){
+      var p = poly[i], q = poly[(i + 1) % poly.length];
+      s += p[0] * q[1] - q[0] * p[1];
+    }
+    return s / 2;
+  }
+
+  /* ================= 绘制 ================= */
+  function resizeCanvas(){
+    var dpr = window.devicePixelRatio || 1;
+    var w = stage.clientWidth;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(w * dpr);
+    draw();
+  }
+
+  function draw(){
+    if (!cv.width) return;
+    var S = cv.width;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, S, S);
+    var k = S / MAP_SIZE;
+
+    // 海（纸底留白）+ 陆地投影
+    ctx.save();
+    ctx.beginPath();
+    G.land.forEach(function(p, i){
+      if (i) ctx.lineTo(p[0] * k, p[1] * k);
+      else ctx.moveTo(p[0] * k, p[1] * k);
+    });
+    ctx.closePath();
+    ctx.fillStyle = '#FBF7EE';
+    ctx.shadowColor = 'rgba(120,100,60,.18)';
+    ctx.shadowBlur = 18 * (S / 460);
+    ctx.shadowOffsetY = 4 * (S / 460);
+    ctx.fill();
+    ctx.restore();
+
+    // 地区
+    ctx.save();
+    ctx.beginPath();
+    G.land.forEach(function(p, i){
+      if (i) ctx.lineTo(p[0] * k, p[1] * k);
+      else ctx.moveTo(p[0] * k, p[1] * k);
+    });
+    ctx.closePath();
+    ctx.clip();
+
+    G.regions.forEach(function(r){
+      ctx.beginPath();
+      r.poly.forEach(function(p, i){
+        if (i) ctx.lineTo(p[0] * k, p[1] * k);
+        else ctx.moveTo(p[0] * k, p[1] * k);
+      });
+      ctx.closePath();
+      ctx.fillStyle = r.color < 0 ? '#EDE7D9' : COLORS[r.color];
+      ctx.fill();
+      ctx.lineWidth = Math.max(1.2, S * 0.004);
+      ctx.strokeStyle = '#FBF7EE';
+      ctx.stroke();
+    });
+    ctx.restore();
+
+    // 海岸线
+    ctx.save();
+    ctx.beginPath();
+    G.land.forEach(function(p, i){
+      if (i) ctx.lineTo(p[0] * k, p[1] * k);
+      else ctx.moveTo(p[0] * k, p[1] * k);
+    });
+    ctx.closePath();
+    ctx.lineWidth = Math.max(1.6, S * 0.005);
+    ctx.strokeStyle = 'rgba(70,55,35,.55)';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ================= 声音 ================= */
+  var AC = null;
+  function ac(){
+    if (!AC){ try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ AC = null; } }
+    if (AC && AC.state === 'suspended') AC.resume();
+    return AC;
+  }
+  function tone(f1, f2, ms, vol){
+    var a = ac(); if (!a) return;
+    var now = a.currentTime;
+    var o = a.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(f1, now);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, now + ms / 1000);
+    var g = a.createGain();
+    g.gain.setValueAtTime(vol, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + ms / 1000);
+    o.connect(g); g.connect(a.destination);
+    o.start(now); o.stop(now + ms / 1000 + 0.02);
+  }
+
+  /* ================= 存档 ================= */
+  var RUN_KEY = 'sise.run.v1';
+  var BOARD_KEY = 'sise.board.v1';
+
+  function loadJSON(key){
+    try { var s = localStorage.getItem(key); return s ? JSON.parse(s) : null; }
+    catch(e){ return null; }
+  }
+  function saveJSON(key, obj){
+    try { localStorage.setItem(key, JSON.stringify(obj)); } catch(e){}
+  }
+
+  function clampScore(v){ return Math.max(0, Math.min(1200, Math.round(v))); }
+
+  function loadRun(){
+    var r = loadJSON(RUN_KEY);
+    if (!r || typeof r !== 'object') return null;
+    var lv = Math.round(Number(r.level));
+    if (!(lv >= 1 && lv <= MAX_LEVEL)) return null;
+    var scores = {};
+    if (r.scores && typeof r.scores === 'object'){
+      Object.keys(r.scores).forEach(function(k){
+        var l = Math.round(Number(k)), v = Number(r.scores[k]);
+        if (l >= 1 && l <= MAX_LEVEL && isFinite(v)) scores[l] = clampScore(v);
+      });
+    }
+    var reached = Math.round(Number(r.reached));
+    if (!(reached >= 1 && reached <= MAX_LEVEL)) reached = lv;
+    return { level: lv, scores: scores, reached: reached };
+  }
+
+  function loadBoard(){
+    var b = loadJSON(BOARD_KEY), out = { runs: [] };
+    if (b && Array.isArray(b.runs)){
+      b.runs.forEach(function(e){
+        if (!e || typeof e !== 'object') return;
+        var sc = Number(e.score);
+        if (!isFinite(sc) || sc < 0) return;
+        var lv = Math.round(Number(e.level));
+        if (!(lv >= 1 && lv <= MAX_LEVEL)) lv = 1;
+        var ts = Number(e.ts);
+        var top = [];
+        if (Array.isArray(e.top)){
+          e.top.slice(0, 3).forEach(function(v){
+            v = Number(v);
+            if (isFinite(v)) top.push(clampScore(v));
+          });
+        }
+        out.runs.push({ score: Math.round(sc), level: lv, top: top, ts: isFinite(ts) ? ts : 0 });
+      });
+    }
+    out.runs.sort(function(a, c){ return c.score - a.score || c.level - a.level; });
+    out.runs = out.runs.slice(0, 10);
+    return out;
+  }
+
+  function fmt(n){
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function fmtDate(ts){
+    if (!ts) return '';
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return '';
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  function runTotal(){
+    var s = 0;
+    for (var k in G.scores){
+      if (Object.prototype.hasOwnProperty.call(G.scores, k)) s += G.scores[k];
+    }
+    return s;
+  }
+
+  function runTop(n){
+    var rows = [];
+    for (var k in G.scores){
+      if (Object.prototype.hasOwnProperty.call(G.scores, k)) rows.push({ lv: Number(k), score: G.scores[k] });
+    }
+    rows.sort(function(a, b){ return b.score - a.score || a.lv - b.lv; });
+    return rows.slice(0, n || 3);
+  }
+
+  function saveRun(nextLevel){
+    saveJSON(RUN_KEY, {
+      level: nextLevel,
+      scores: G.scores,
+      reached: G.reached,
+      ts: Date.now()
+    });
+  }
+
+  function refreshHeader(){
+    document.getElementById('lvNow').textContent = G.level;
+    document.getElementById('runScore').textContent = fmt(runTotal());
+  }
+
+  /* ================= 流程 ================= */
+  function startLevel(lv){
+    G.level = Math.max(1, Math.min(MAX_LEVEL, Math.round(lv) || 1));
+    G.limited = G.level >= LIMIT_FROM;
+    if (G.limited && G.sel > 2) G.sel = 0;
+    G.over = false;
+    G.mode = 'level';
+    G.ended = false;
+    G.errors = 0;
+    G.restarts = 0;
+    G.reached = Math.max(G.reached, G.level);
+    document.getElementById('btnReset').disabled = false;
+    document.getElementById('btnNew').disabled = false;
+    document.getElementById('btnAns').style.display = 'none';
+    document.getElementById('ansBar').classList.remove('on');
+    refreshHeader();
+    document.getElementById('over').classList.remove('on');
+
+    var n = levelSize(G.level);
+    var m = buildMap(n, G.limited);
+    if (!m){
+      // 极端情况下重来
+      setTimeout(function(){ startLevel(G.level); }, 40);
+      return;
+    }
+    G.land = m.land;
+    G.regions = m.regions;
+    G.solution = m.solution;
+    G.startAt = Date.now();
+
+    var adj = m.regions.map(function(r){ return r.neighbors; });
+    var rn = m.regions.length;
+    G.adj = adj;
+
+    var sol3 = null;
+    if (G.limited){
+      sol3 = m.solution.slice();
+      G.chi = 3;
+    } else {
+      sol3 = solve(adj, rn, 3);
+      G.chi = sol3 ? 3 : 4;
+    }
+    G.sol3 = sol3;
+
+    var initBest = 0, cc = {};
+    m.solution.forEach(function(c){
+      cc[c] = (cc[c] || 0) + 1;
+      if (cc[c] > initBest) initBest = cc[c];
+    });
+    G.target = minMaxClass(adj, rn, G.limited ? 3 : 4, initBest) ||
+               Math.ceil(rn / (G.limited ? 3 : 4));
+
+    draw();
+    updateStatus();
+    renderPalette();
+  }
+
+  function updateStatus(){
+    var filled = G.regions.filter(function(r){ return r.color >= 0; }).length;
+    document.getElementById('status').innerHTML =
+      '已填 <b>' + filled + '</b> / ' + G.regions.length + ' 个地区' +
+      (G.limited ? ' · <span class="limitTag">限三色</span>' : '');
+    var h = G.limited
+      ? '本关只给三种颜色'
+      : (G.chi === 3 ? '这张图三种颜色就够' : '');
+    if (G.mode === 'level' && G.chi === 3 && G.restarts === 1) h = '再重来一次，会出现三色答案';
+    document.getElementById('hint').textContent = h;
+  }
+
+  function renderPalette(){
+    var host = document.getElementById('palette');
+    host.innerHTML = '';
+    var k = G.limited ? 3 : 4;
+    for (var i = 0; i < k; i++){
+      (function(i){
+        var b = document.createElement('button');
+        b.className = 'sw' + (G.sel === i ? ' sel' : '');
+        b.type = 'button';
+        b.innerHTML = '<i style="background:' + COLORS[i] + '"></i><span>' + NAMES[i] + '</span>';
+        b.addEventListener('click', function(){
+          if (G.over) return;
+          G.sel = i;
+          renderPalette();
+        });
+        host.appendChild(b);
+      })(i);
+    }
+  }
+
+  function regionAt(x, y){
+    // 坐标转回内部坐标
+    var S = cv.width;
+    var ix = x / S * MAP_SIZE, iy = y / S * MAP_SIZE;
+    for (var i = 0; i < G.regions.length; i++){
+      if (pointInPoly(ix, iy, G.regions[i].poly)) return i;
+    }
+    return -1;
+  }
+
+  function paint(i){
+    if (G.over || i < 0) return;
+    var r = G.regions[i];
+    if (r.color === G.sel) return;
+
+    // 邻接冲突：同色不让涂
+    for (var k = 0; k < r.neighbors.length; k++){
+      if (G.regions[r.neighbors[k]].color === G.sel){
+        G.errors++;
+        stage.classList.add('shake');
+        setTimeout(function(){ stage.classList.remove('shake'); }, 280);
+        tone(200, 150, 160, 0.10);
+        updateStatus();
+        return;
+      }
+    }
+
+    r.color = G.sel;
+    draw();
+    updateStatus();
+    tone(520 + G.sel * 90, 660 + G.sel * 90, 70, 0.07);
+
+    if (G.regions.every(function(r2){ return r2.color >= 0; })) win();
+  }
+
+  function recordLevel(lv, score){
+    if (score > (G.scores[lv] || 0)) G.scores[lv] = score;
+    G.level = lv;
+    refreshHeader();
+    // 存「下一关」：万一中途关掉页面，回来接着打
+    saveRun(Math.min(MAX_LEVEL, lv + 1));
+  }
+
+  function win(){
+    G.over = true;
+    G.mode = 'level';
+    var sec = Math.round((Date.now() - G.startAt) / 1000);
+
+    var cnt = {}, used = 0, maxClass = 0;
+    G.regions.forEach(function(r){
+      if (cnt[r.color] === undefined){ cnt[r.color] = 0; used++; }
+      cnt[r.color]++;
+      if (cnt[r.color] > maxClass) maxClass = cnt[r.color];
+    });
+
+    var target = G.target || Math.ceil(G.regions.length / 4);
+    var balancePen = Math.max(0, maxClass - target) * 150;
+    var timePen = Math.min(300, Math.floor(sec / 10) * 30);
+    var errPen = G.errors * 20;
+    var threeBonus = (!G.limited && G.chi === 3 && used === 3) ? 200 : 0;
+    var score = Math.max(0, 1000 - balancePen - timePen - errPen + threeBonus);
+
+    recordLevel(G.level, score);
+
+    document.getElementById('oScore').textContent = fmt(score);
+    document.getElementById('oScoreLabel').textContent = '本关得分';
+    document.getElementById('oTime').textContent = sec;
+    document.getElementById('oTimeLabel').textContent = '用时（秒）';
+    document.getElementById('oErr').textContent = G.errors;
+    document.getElementById('oErrLabel').textContent = '涂错次数';
+
+    var d = [];
+    d.push('均衡：最大色块 <b>' + maxClass + '</b>，' + (G.limited ? '三色' : '四色') +
+           '最优 <b>' + target + '</b>' +
+           (balancePen ? '（−' + balancePen + '）' : '（满分）'));
+    if (G.limited){
+      d.push('限色关：三色完成');
+    } else if (G.chi === 3){
+      d.push(used === 3 ? '三色完成 <b>+200</b>' : '这张图其实三种颜色就够');
+    } else {
+      d.push('这张图需要四种颜色');
+    }
+    if (timePen || errPen){
+      var parts = [];
+      if (timePen) parts.push('用时 −' + timePen);
+      if (errPen) parts.push('涂错 −' + errPen);
+      d.push(parts.join(' · '));
+    }
+    d.push('本局 ' + fmt(runTotal()) + ' 分 · 已过 ' + Object.keys(G.scores).length + ' 关');
+    document.getElementById('oDetail').innerHTML = d.join('<br>');
+
+    var last = G.level >= MAX_LEVEL;
+    document.getElementById('overTitle').textContent = last ? '百关完成' : '过关';
+    document.getElementById('btnNext').textContent = last ? '结算本局' : '下一关';
+    document.getElementById('btnAns').style.display = 'none';
+    document.getElementById('over').classList.add('on');
+    tone(660, 990, 220, 0.10);
+  }
+
+  // 重来两次后，如果这张图三色可解，就露出「三色答案」
+  function updateAnsButton(){
+    var show = G.mode === 'level' && !G.over && G.chi === 3 && !!G.sol3 && G.restarts >= 2;
+    document.getElementById('btnAns').style.display = show ? '' : 'none';
+  }
+
+  function revealAnswer(){
+    if (G.mode !== 'level' || G.over || G.chi !== 3 || !G.sol3) return;
+    G.mode = 'reveal';
+    G.over = true;
+    G.restarts = 0;
+    document.getElementById('btnAns').style.display = 'none';
+    document.getElementById('btnReset').disabled = true;
+    document.getElementById('btnNew').disabled = true;
+
+    var n = G.regions.length;
+    for (var i = 0; i < n; i++) G.regions[i].color = G.sol3[i];
+    draw();
+    updateStatus();
+
+    var sec = Math.round((Date.now() - G.startAt) / 1000);
+    var cc = colorCount(G.adj, n, 3, 2, 400000);
+    var note;
+    if (cc.count >= 2){
+      note = '三色方案不唯一，这里画的是其中一种。';
+    } else if (cc.truncated){
+      note = '三色方案可能不止一种，这里画的是其中一种。';
+    } else {
+      note = '三色方案唯一。';
+    }
+    note += '本关不计分' + (sec ? '，用了 ' + sec + ' 秒。' : '。');
+    document.getElementById('ansNote').textContent = note;
+
+    var atEnd = G.level >= MAX_LEVEL;
+    document.getElementById('btnAnsNext').textContent = atEnd
+      ? (Object.keys(G.scores).length ? '结算本局' : '新的一局')
+      : '下一关';
+    document.getElementById('ansBar').classList.add('on');
+    document.getElementById('hint').textContent = '三色答案只供对照，本关不计分';
+    saveRun(atEnd ? MAX_LEVEL : G.level + 1);
+    tone(440, 660, 200, 0.08);
+  }
+
+  function endRun(){
+    if (G.ended) return;
+    var keys = Object.keys(G.scores);
+    if (!keys.length) return;
+    G.ended = true;
+    var reached = G.reached;
+    keys.forEach(function(k){ reached = Math.max(reached, Number(k)); });
+
+    var entry = {
+      score: runTotal(),
+      level: reached,
+      top: runTop(3).map(function(t){ return t.score; }),
+      ts: Date.now()
+    };
+    var b = loadBoard();
+    b.runs.push(entry);
+    b.runs.sort(function(x, y){ return y.score - x.score || y.level - x.level; });
+    b.runs = b.runs.slice(0, 10);
+    saveJSON(BOARD_KEY, b);
+    try { localStorage.removeItem(RUN_KEY); } catch(e){}
+
+    showSummary(entry, b.runs.indexOf(entry) + 1);
+  }
+
+  function showSummary(entry, rank){
+    G.over = true;
+    G.mode = 'summary';
+    document.getElementById('ansBar').classList.remove('on');
+    document.getElementById('overTitle').textContent = '本局结束';
+    document.getElementById('oScore').textContent = fmt(entry.score);
+    document.getElementById('oScoreLabel').textContent = '累计得分';
+    document.getElementById('oTime').textContent = '第 ' + entry.level + ' 关';
+    document.getElementById('oTimeLabel').textContent = '最远';
+    document.getElementById('oErr').textContent = Object.keys(G.scores).length;
+    document.getElementById('oErrLabel').textContent = '过关数';
+
+    var d = [];
+    if (entry.top.length){
+      d.push('本局最高三关 <b>' + entry.top.map(fmt).join(' / ') + '</b>');
+    }
+    d.push(rank ? '累计榜第 <b>' + rank + '</b> 名' : '未进前十');
+    document.getElementById('oDetail').innerHTML = d.join('<br>');
+    document.getElementById('btnNext').textContent = '新的一局';
+    document.getElementById('btnReset').disabled = true;
+    document.getElementById('btnNew').disabled = true;
+    document.getElementById('over').classList.add('on');
+    tone(520, 780, 260, 0.09);
+  }
+
+  function newRun(){
+    G.scores = {};
+    G.reached = 0;
+    try { localStorage.removeItem(RUN_KEY); } catch(e){}
+    startLevel(1);
+  }
+
+  function renderBoard(){
+    var top = runTop(3);
+    var host = document.getElementById('listRun');
+    host.innerHTML = '';
+    if (!top.length){
+      host.innerHTML = '<li class="empty">还没有完成的关卡</li>';
+    } else {
+      top.forEach(function(t, i){
+        var li = document.createElement('li');
+        li.innerHTML = '<span class="no">' + (i + 1) + '</span>' +
+          '<span class="mid"><span class="main">第 ' + t.lv + ' 关</span></span>' +
+          '<span class="v">' + t.score + '</span>';
+        host.appendChild(li);
+      });
+    }
+
+    var b = loadBoard();
+    var hall = document.getElementById('listHall');
+    hall.innerHTML = '';
+    if (!b.runs.length){
+      hall.innerHTML = '<li class="empty">还没有上榜记录</li>';
+    } else {
+      b.runs.forEach(function(e, i){
+        var sub = '至第 ' + e.level + ' 关' + (e.ts ? ' · ' + fmtDate(e.ts) : '') +
+                  (e.top.length ? ' · 三关 ' + e.top.join('/') : '');
+        var li = document.createElement('li');
+        li.innerHTML = '<span class="no">' + (i + 1) + '</span>' +
+          '<span class="mid"><span class="main">' + fmt(e.score) + ' 分</span>' +
+          '<span class="sub">' + sub + '</span></span>';
+        hall.appendChild(li);
+      });
+    }
+
+    document.getElementById('btnEndRun').disabled = G.ended || !Object.keys(G.scores).length;
+  }
+
+  function openBoard(){
+    renderBoard();
+    document.getElementById('mask').classList.add('on');
+  }
+  function closeBoard(){
+    document.getElementById('mask').classList.remove('on');
+  }
+
+  /* ================= 事件 ================= */
+  cv.addEventListener('click', function(e){
+    var r = cv.getBoundingClientRect();
+    var x = (e.clientX - r.left) / r.width * cv.width;
+    var y = (e.clientY - r.top) / r.height * cv.height;
+    paint(regionAt(x, y));
+  });
+
+  document.getElementById('btnNext').addEventListener('click', function(){
+    if (G.mode === 'summary'){ newRun(); return; }
+    if (G.level >= MAX_LEVEL){ endRun(); return; }
+    startLevel(G.level + 1);
+  });
+
+  document.getElementById('btnReset').addEventListener('click', function(){
+    if (G.mode !== 'level') return;
+    G.regions.forEach(function(r){ r.color = -1; });
+    G.errors = 0;
+    G.over = false;
+    G.startAt = Date.now();
+    G.restarts++;
+    document.getElementById('over').classList.remove('on');
+    draw();
+    updateStatus();
+    updateAnsButton();
+  });
+
+  document.getElementById('btnNew').addEventListener('click', function(){
+    if (G.mode !== 'level') return;
+    startLevel(G.level);
+  });
+
+  document.getElementById('btnAns').addEventListener('click', revealAnswer);
+  document.getElementById('btnAnsNext').addEventListener('click', function(){
+    if (G.level >= MAX_LEVEL){
+      if (Object.keys(G.scores).length) endRun(); else newRun();
+      return;
+    }
+    startLevel(G.level + 1);
+  });
+
+  document.getElementById('btnBoard').addEventListener('click', openBoard);
+  document.getElementById('btnClose').addEventListener('click', closeBoard);
+  document.getElementById('mask').addEventListener('click', function(e){
+    if (e.target === this) closeBoard();
+  });
+  document.getElementById('btnEndRun').addEventListener('click', function(){
+    if (G.ended || !Object.keys(G.scores).length) return;
+    closeBoard();
+    endRun();
+  });
+
+  var rz = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(rz);
+    rz = setTimeout(resizeCanvas, 150);
+  });
+
+  /* ================= 启动 ================= */
+  (function(){
+    var saved = loadRun();
+    if (saved){
+      G.scores = saved.scores;
+      G.level = saved.level;
+      G.reached = saved.reached;
+    } else {
+      try { localStorage.removeItem(RUN_KEY); } catch(e){}
+    }
+    renderPalette();
+    startLevel(G.level);
+  })();
+  requestAnimationFrame(function(){ resizeCanvas(); });
+})();
+</script>
+</body>
+</html>

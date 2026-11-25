@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Play · 认知训练与小游戏</title>
-<meta name="description" content="认知训练、眼动放松、模拟钢琴 —— 打开即玩的浏览器小游戏合集。Browser mini-games you can play instantly.">
+<meta name="description" content="认知训练、逻辑推理、眼动放松、模拟钢琴 —— 打开即玩的浏览器小游戏合集。Browser mini-games you can play instantly.">
 <meta property="og:title" content="Play — 认知训练与小游戏">
-<meta property="og:description" content="擂辣椒 · 舒尔特方格 · 色词干扰 · 水果追踪 · 数字序列记忆 · 2-Back · 眼动放松 · 涟漪 · 432Hz 钢琴｜打开即玩">
+<meta property="og:description" content="擂辣椒 · 舒尔特方格 · 色词干扰 · 水果追踪 · 数字序列记忆 · 2-Back · 四色地图 · 眼动放松 · 涟漪 · 432Hz 钢琴｜打开即玩">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://shiyubeihai.github.io/play/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
@@ -34,8 +34,8 @@
   .wrap{max-width:1000px;margin:0 auto;padding:56px 24px 72px}
 
   /* ===== 头部 ===== */
-  .bar{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
-       padding-bottom:18px;border-bottom:1px solid var(--line)}
+  .bar{display:flex;align-items:baseline;justify-content:space-between;gap:12px 16px;
+       flex-wrap:wrap;padding-bottom:18px;border-bottom:1px solid var(--line)}
   h1{
     margin:0;
     font-family:ui-serif,Georgia,"Songti SC","SimSun",serif;
@@ -58,6 +58,14 @@
   #langBtn:hover{background:var(--khaki-soft);border-color:var(--khaki)}
   #langBtn:focus-visible{outline:2px solid var(--khaki);outline-offset:2px}
 
+  .actions{display:flex;align-items:center;gap:8px;flex:none;margin-left:auto}
+  a.support{
+    font-size:12.5px;color:var(--khaki);text-decoration:none;white-space:nowrap;
+    border:1px solid var(--line);border-radius:999px;padding:6px 14px;letter-spacing:.04em;
+    transition:background .2s,border-color .2s;
+  }
+  a.support:hover{background:var(--khaki-soft);border-color:var(--khaki)}
+
   .lead{margin:22px 0 0;color:var(--muted);font-size:14.5px;line-height:1.85;max-width:62ch}
 
   /* ===== 分类筛选 ===== */
@@ -73,7 +81,7 @@
   .chip[aria-pressed="true"]{color:var(--khaki);border-color:var(--line);background:var(--khaki-soft);font-weight:600}
   .chip:focus-visible{outline:2px solid var(--khaki);outline-offset:2px}
 
-  /* ===== 卡片网格：桌面 3 列 → 自然形成 3+2 ===== */
+  /* ===== 卡片网格 ===== */
   #grid{
     margin-top:22px;
     display:grid;gap:14px;
@@ -115,9 +123,15 @@
     font-family:ui-serif,Georgia,"Songti SC","SimSun",serif;
     font-size:17.5px;font-weight:600;letter-spacing:.02em;line-height:1.4;
   }
+  .headRight{display:flex;align-items:baseline;gap:8px;flex:none}
   .level{
     flex:none;font-size:11.5px;letter-spacing:.06em;
     color:var(--muted);opacity:.9;white-space:nowrap;
+  }
+  .badge{
+    flex:none;font-size:10px;letter-spacing:.08em;
+    color:#8C5A2B;background:#FBF2DC;border:1px solid #E4D2A8;
+    border-radius:999px;padding:0 7px;line-height:1.7;
   }
 
   .desc{margin:7px 0 0;color:var(--muted);font-size:13.5px;line-height:1.7}
@@ -149,6 +163,8 @@
   @media (max-width:600px){
     .wrap{padding:36px 18px 56px}
     #grid{grid-template-columns:1fr}
+    .bar{flex-direction:column;align-items:flex-start}
+    .actions{width:100%;justify-content:flex-end;margin-left:0}
   }
   @media (prefers-reduced-motion:reduce){
     *{transition:none!important}
@@ -160,8 +176,12 @@
 <div class="wrap">
   <header>
     <div class="bar">
-      <h1>Play<small id="subtitle">认知训练 · 眼动放松 · 模拟钢琴</small></h1>
-      <button id="langBtn" type="button">EN</button>
+      <h1>Play<small id="subtitle">认知训练 · 逻辑推理 · 眼动放松 · 模拟钢琴</small></h1>
+      <div class="actions">
+        <a class="support" id="supportLink" href="https://mbd.pub/o/author-bW2ZnGtkZQ==/work"
+           target="_blank" rel="noopener">请我喝杯柠檬水</a>
+        <button id="langBtn" type="button">EN</button>
+      </div>
     </div>
     <p class="lead" id="lead"></p>
   </header>
@@ -172,8 +192,6 @@
   <footer>
     <div id="footText"></div>
     <div class="disc" id="discText"></div>
-    <p class="support"><a href="https://mbd.pub/o/bread/mbd-YZaWlZxxbQ=="
-  target="_blank" rel="noopener">请我喝杯柠檬水 · Buy me a lemonade</a></p>
   </footer>
 </div>
 
@@ -184,33 +202,37 @@
 const I18N = {
   zh: {
     docTitle: "Play · 认知训练与小游戏",
-    subtitle: "认知训练 · 眼动放松 · 模拟钢琴",
-    lead: "九款为「用脑」和「用眼」设计的小游戏。每局一两分钟，无需安装，无需登录，打开就能玩。",
-    all: "全部", cognitive: "认知训练", relax: "放松", music: "音乐",
+    subtitle: "认知训练 · 逻辑推理 · 眼动放松 · 模拟钢琴",
+    lead: "十款为「用脑」和「用眼」设计的小游戏。大多每局一两分钟，无需安装，无需登录，打开就能玩。",
+    all: "全部", cognitive: "认知训练", logic: "逻辑推理", relax: "放松", music: "音乐",
     play: "开始玩",
+    support: "请我喝杯柠檬水",
     empty: "这个分类下还没有游戏。",
     foot: "源码托管在 GitHub · 使用 GitHub Pages 部署 · 不收集任何数据，成绩只存在你的浏览器里",
     disclaimer: "「认知训练」「眼动放松」为游戏化的注意力与眼部活动练习，不构成医疗建议。",
     langBtn: "EN",
-    langLabel: "Switch to English"
+    langLabel: "Switch to English",
+    newTag: "新"
   },
   en: {
     docTitle: "Play · Cognitive & Mini Games",
-    subtitle: "Cognitive training · Eye relaxation · Mini piano",
-    lead: "Nine small games for your brain and your eyes. A session takes a minute or two — no install, no sign-up.",
-    all: "All", cognitive: "Cognitive", relax: "Relax", music: "Music",
+    subtitle: "Cognitive training · Logic · Eye relaxation · Mini piano",
+    lead: "Ten small games for your brain and your eyes. Most take a minute or two — no install, no sign-up.",
+    all: "All", cognitive: "Cognitive", logic: "Logic", relax: "Relax", music: "Music",
     play: "Play",
+    support: "Buy me a lemonade",
     empty: "No games in this category yet.",
     foot: "Source on GitHub · Deployed with GitHub Pages · Nothing is collected; scores stay in your browser",
     disclaimer: "\"Cognitive training\" and \"eye relaxation\" here are gamified attention and eye-activity exercises only. They are not medical advice.",
     langBtn: "中文",
-    langLabel: "切换到中文"
+    langLabel: "切换到中文",
+    newTag: "New"
   }
 };
 
 /* =========================================================
    ② 游戏列表
-   —— 数组顺序 = 显示顺序（热身 → 加压 → 降温 → 自由玩）
+   —— 数组顺序 = 显示顺序（热身 → 加压 → 推理 → 降温 → 自由玩）
    —— 加游戏：复制一条改字段即可。url 用相对路径，末尾 "/" 指向该目录 index.html
    ========================================================= */
 const GAMES = [
@@ -281,6 +303,18 @@ const GAMES = [
     tags: { zh: "更新记忆 · 速度", en: "Updating · Speed" }
   },
   {
+    url: "./fourcolor/",
+    cat: "logic",
+    isNew: true,
+    level: { zh: "挑战", en: "Challenge" },
+    title: { zh: "四色地图", en: "Four-Color Map" },
+    desc: {
+      zh: "给每个地区上色，相邻不能同色。四色一定够；第 72 关起只给三种颜色，每关还要比均衡和速度。",
+      en: "Colour every region so neighbours differ. Four colours always suffice — from level 72 you get only three, with balance and speed scored."
+    },
+    tags: { zh: "逻辑推理 · 100 关", en: "Logic · 100 levels" }
+  },
+  {
     url: "./eyesrelaxing/",
     cat: "relax",
     level: { zh: "放松", en: "Relax" },
@@ -297,8 +331,8 @@ const GAMES = [
     level: { zh: "自由", en: "Free play" },
     title: { zh: "涟漪", en: "Ripple" },
     desc: {
-      zh: "点一下水面，涟漪散开，水滴轻轻响一声。没有分数，没有计时，想点多久点多久。",
-      en: "Tap the water and watch ripples spread, each with a soft drop of sound. No score, no timer."
+      zh: "点一下水面，涟漪散开。安静待一会儿，会下起雨，浪从左上角推过来。没有分数，也没有计时。",
+      en: "Tap the water to spread ripples. Stay a while and rain builds, then swells roll in from the top left. No score, no timer."
     },
     tags: { zh: "治愈 · 无目标", en: "Ambient · No goal" }
   },
@@ -323,6 +357,7 @@ const filtersEl = document.getElementById("filters");
 const leadEl = document.getElementById("lead");
 const subtitleEl = document.getElementById("subtitle");
 const footEl = document.getElementById("footText");
+const supportEl = document.getElementById("supportLink");
 const discEl = document.getElementById("discText");
 const langBtn = document.getElementById("langBtn");
 
@@ -335,6 +370,7 @@ function renderFilters() {
   const cats = [
     ["all", t("all")],
     ["cognitive", t("cognitive")],
+    ["logic", t("logic")],
     ["relax", t("relax")],
     ["music", t("music")]
   ];
@@ -378,11 +414,22 @@ function renderCards() {
     const h2 = document.createElement("h2");
     h2.textContent = g.title[lang];
 
+    const right = document.createElement("div");
+    right.className = "headRight";
+
+    if (g.isNew) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = t("newTag");
+      right.appendChild(badge);
+    }
+
     const lv = document.createElement("span");
     lv.className = "level";
     lv.textContent = g.level[lang];
+    right.appendChild(lv);
 
-    head.append(h2, lv);
+    head.append(h2, right);
 
     const p = document.createElement("p");
     p.className = "desc";
@@ -415,6 +462,7 @@ function render() {
   leadEl.textContent = t("lead");
   footEl.textContent = t("foot");
   discEl.textContent = t("disclaimer");
+  if (supportEl) supportEl.textContent = t("support");
   langBtn.textContent = t("langBtn");
   langBtn.setAttribute("aria-label", t("langLabel"));
   renderFilters();

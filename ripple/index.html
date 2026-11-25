@@ -113,6 +113,8 @@ let activity = 0;
 
 /* ================= 尺寸 ================= */
 let W = 0, H = 0, DPR = 1;
+let maxDrops = 130;   // 雨滴上限，按屏幕面积算
+let areaK = 1;        // 相对手机屏幕的面积系数
 
 /* 阳光金点 */
 let sparkles = [];
@@ -135,6 +137,8 @@ function resize(){
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth;
   H = window.innerHeight;
+  maxDrops = Math.min(300, Math.max(90, Math.round(W * H / 2700)));
+  areaK = Math.max(0.9, Math.min(2, (W * H) / (390 * 844)));
   canvas.width = Math.round(W * DPR);
   canvas.height = Math.round(H * DPR);
   canvas.style.width = W + 'px';
@@ -168,10 +172,14 @@ function addRipple(x, y, strength){
 }
 
 function drawSparkles(t){
+  /* 雨一大，阳光金点就收起来 */
+  const sun = 1 - rain * 0.94;
+  if (sun <= 0.02) return;
+
   for (let i = 0; i < sparkles.length; i++){
     const s = sparkles[i];
     const k = 0.5 + 0.5 * Math.sin(t * s.speed + s.phase);
-    const a = 0.16 + 0.66 * k;
+    const a = (0.16 + 0.66 * k) * sun;
     const r = s.r * (0.6 + 0.6 * k);
 
     /* 外围柔光 */
@@ -228,6 +236,208 @@ function drawRipples(){
   }
 }
 
+/* ================= 天气 ================= */
+/* 时间线：0–60 秒平静；60 秒起下雨，180 秒到满；180 秒起从左上角起浪 */
+const RAIN_START = 60;
+const RAIN_FULL = 180;
+const WAVE_START = 180;
+
+let startAt = performance.now();
+let rain = 0;                 // 0..1
+
+const rainDrops = [];
+const rainRings = [];
+let ringBudget = 0;
+
+const waves = [];
+let nextWaveAt = WAVE_START + 0.8;
+
+function spawnDrop(){
+  rainDrops.push({
+    x: Math.random() * (W + 180) - 180,
+    y: -24 - Math.random() * 80,
+    vx: 80 + Math.random() * 110,
+    vy: 700 + Math.random() * 520,
+    len: 11 + Math.random() * 15,
+    a: 0.10 + Math.random() * 0.18
+  });
+}
+
+function spawnRainRing(){
+  rainRings.push({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: 1 + Math.random() * 2,
+    max: 11 + Math.random() * 17,
+    speed: 17 + Math.random() * 15,
+    w: 0.85 + Math.random() * 0.55,
+    a: 0.5 + Math.random() * 0.35
+  });
+  if (rainRings.length > 96 * areaK) rainRings.shift();
+}
+
+function spawnWave(){
+  /* 圆心藏在左上角外面，浪就从左上角一带斜着推过来 */
+  const cx = -W * (0.04 + Math.random() * 0.2);
+  const cy = -H * (0.04 + Math.random() * 0.2);
+  const lambda = 92 + Math.random() * 62;
+  const trains = 3;
+
+  waves.push({
+    cx: cx,
+    cy: cy,
+    front: 0,
+    speed: 44 + Math.random() * 26,
+    lambda: lambda,
+    trains: trains,
+    amp: 7 + Math.random() * 13,
+    f1: 2.2 + Math.random() * 2.4,
+    f2: 5.5 + Math.random() * 3.5,
+    ph1: Math.random() * TAU,
+    ph2: Math.random() * TAU,
+    strength: 0.72 + Math.random() * 0.28,
+    maxR: Math.hypot(W - cx, H - cy) + lambda * trains + 240
+  });
+}
+
+function updateWeather(now, dt){
+  const el = Math.max(0, (now - startAt) / 1000);
+
+  rain = el <= RAIN_START ? 0 : Math.min(1, (el - RAIN_START) / (RAIN_FULL - RAIN_START));
+
+  /* 开始下雨时，把「轻点水面」的提示收掉 */
+  if (el > RAIN_START - 2) hideHint();
+
+  /* 雨滴数量按雨量的 1.6 次方增长：小雨稀疏但看得见，大雨密 */
+  const target = Math.round(maxDrops * Math.pow(rain, 1.6));
+  while (rainDrops.length < target) spawnDrop();
+  while (rainDrops.length > target) rainDrops.pop();
+
+  for (let i = 0; i < rainDrops.length; i++){
+    const d = rainDrops[i];
+    d.x += d.vx * dt;
+    d.y += d.vy * dt;
+    if (d.y > H + 26 || d.x > W + 70){
+      d.x = Math.random() * (W + 180) - 180;
+      d.y = -24 - Math.random() * 90;
+    }
+  }
+
+  /* 落点的小水圈 */
+  if (rain > 0.002){
+    ringBudget += dt * (3 + 36 * rain) * areaK;
+    let guard = 0;
+    while (ringBudget >= 1 && guard++ < 4){
+      ringBudget -= 1;
+      spawnRainRing();
+    }
+  } else {
+    ringBudget = 0;
+  }
+
+  /* 起浪：每次一串，间隔不齐 */
+  if (el >= WAVE_START){
+    if (nextWaveAt < WAVE_START) nextWaveAt = WAVE_START;
+    if (el >= nextWaveAt){
+      spawnWave();
+      nextWaveAt = el + 8 + Math.random() * 5;
+    }
+  }
+
+  for (let i = waves.length - 1; i >= 0; i--){
+    const w = waves[i];
+    w.front += w.speed * dt;
+    if (w.front - w.lambda * w.trains > w.maxR) waves.splice(i, 1);
+  }
+}
+
+function drawRainRings(dt){
+  for (let i = rainRings.length - 1; i >= 0; i--){
+    const r = rainRings[i];
+    r.r += r.speed * dt;
+    const a = 1 - r.r / r.max;
+    if (a <= 0){
+      rainRings.splice(i, 1);
+      continue;
+    }
+
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, r.r, 0, TAU);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (a * r.a * 0.52).toFixed(3) + ')';
+    ctx.lineWidth = Math.max(0.7, r.w * (0.45 + a * 0.55));
+    ctx.stroke();
+  }
+}
+
+function drawRain(){
+  if (!rainDrops.length) return;
+
+  ctx.lineCap = 'round';
+  const lw = 0.9 + rain * 0.5;
+
+  for (let i = 0; i < rainDrops.length; i++){
+    const d = rainDrops[i];
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x - d.vx * 0.022, d.y - d.len);
+    ctx.strokeStyle = 'rgba(255,255,255,' + (d.a * (0.68 + rain * 0.32)).toFixed(3) + ')';
+    ctx.lineWidth = lw;
+    ctx.stroke();
+  }
+}
+
+/* 一条浪脊：沿屏幕所在的弧段采样，叠两个正弦做成不规则 */
+function wavePath(w, R, off, j){
+  const a0 = -0.22, a1 = Math.PI / 2 + 0.22;
+  const steps = 44;
+  const ph1 = w.ph1 + j * 1.9;
+  const ph2 = w.ph2 + j * 0.8;
+  const amp = w.amp * (0.78 + 0.24 * Math.sin(w.ph1 + j * 2.3));
+
+  ctx.beginPath();
+  for (let k = 0; k <= steps; k++){
+    const th = a0 + (a1 - a0) * k / steps;
+    const wob = Math.sin(th * w.f1 + ph1) * amp
+              + Math.sin(th * w.f2 + ph2) * amp * 0.42;
+    const r = R + wob + off;
+    const x = w.cx + Math.cos(th) * r;
+    const y = w.cy + Math.sin(th) * r;
+    if (k) ctx.lineTo(x, y);
+    else ctx.moveTo(x, y);
+  }
+}
+
+function drawWaves(){
+  for (let i = 0; i < waves.length; i++){
+    const w = waves[i];
+    for (let j = 0; j < w.trains; j++){
+      const R = w.front - j * w.lambda - Math.sin(w.ph2 + j * 2.7) * w.lambda * 0.07;
+      if (R < 20) continue;
+
+      const a = w.strength * Math.min(1, R / 120) * (0.62 - j * 0.11);
+      if (a <= 0.02) continue;
+
+      /* 波谷（暗） */
+      wavePath(w, R, 3.4, j);
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = 'rgba(30,84,102,' + (a * 0.24).toFixed(3) + ')';
+      ctx.stroke();
+
+      /* 柔光 */
+      wavePath(w, R, 0, j);
+      ctx.lineWidth = 9;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (a * 0.10).toFixed(3) + ')';
+      ctx.stroke();
+
+      /* 浪脊 */
+      wavePath(w, R, 0, j);
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (a * 0.8).toFixed(3) + ')';
+      ctx.stroke();
+    }
+  }
+}
+
 let lastFrame = 0;
 
 function loop(now){
@@ -238,9 +448,14 @@ function loop(now){
   /* 每秒衰减到一半，帧率无关 */
   activity *= Math.pow(0.5, dt);
 
+  updateWeather(now, dt);
+
   ctx.clearRect(0, 0, W, H);
   drawSparkles(t);
+  drawRainRings(dt);
   drawRipples();
+  drawWaves();
+  drawRain();
 
   tintEl.style.opacity = (activity * 0.42).toFixed(3);
 
