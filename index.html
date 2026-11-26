@@ -6,7 +6,7 @@
 <title>Play · 认知训练与小游戏</title>
 <meta name="description" content="认知训练、逻辑推理、眼动放松、模拟钢琴 —— 打开即玩的浏览器小游戏合集。Browser mini-games you can play instantly.">
 <meta property="og:title" content="Play — 认知训练与小游戏">
-<meta property="og:description" content="擂辣椒 · 舒尔特方格 · 色词干扰 · 水果追踪 · 数字序列记忆 · 2-Back · 四色地图 · 眼动放松 · 涟漪 · 432Hz 钢琴｜打开即玩">
+<meta property="og:description" content="四色地图 · 玻璃球消消乐 · 擂辣椒 · 舒尔特方格 · 色词干扰 · 水果追踪 · 数字序列记忆 · 2-Back · 眼动放松 · 涟漪 · 432Hz 钢琴｜打开即玩">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://shiyubeihai.github.io/play/">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
@@ -203,7 +203,7 @@ const I18N = {
   zh: {
     docTitle: "Play · 认知训练与小游戏",
     subtitle: "认知训练 · 逻辑推理 · 眼动放松 · 模拟钢琴",
-    lead: "十款为「用脑」和「用眼」设计的小游戏。大多每局一两分钟，无需安装，无需登录，打开就能玩。",
+    lead: "十一款为「用脑」和「用眼」设计的小游戏。大多每局一两分钟，无需安装，无需登录，打开就能玩。",
     all: "全部", cognitive: "认知训练", logic: "逻辑推理", relax: "放松", music: "音乐",
     play: "开始玩",
     support: "请我喝杯柠檬水",
@@ -217,7 +217,7 @@ const I18N = {
   en: {
     docTitle: "Play · Cognitive & Mini Games",
     subtitle: "Cognitive training · Logic · Eye relaxation · Mini piano",
-    lead: "Ten small games for your brain and your eyes. Most take a minute or two — no install, no sign-up.",
+    lead: "Eleven small games for your brain and your eyes. Most take a minute or two — no install, no sign-up.",
     all: "All", cognitive: "Cognitive", logic: "Logic", relax: "Relax", music: "Music",
     play: "Play",
     support: "Buy me a lemonade",
@@ -232,10 +232,36 @@ const I18N = {
 
 /* =========================================================
    ② 游戏列表
-   —— 数组顺序 = 显示顺序（热身 → 加压 → 推理 → 降温 → 自由玩）
+   —— 数组顺序 = 显示顺序
+   —— 排序规则：最新更新的两款放最前（更新更近的在前）；
+      最后三款顺序固定：眼动放松 → 涟漪 → 432Hz 钢琴，钢琴永远收尾
    —— 加游戏：复制一条改字段即可。url 用相对路径，末尾 "/" 指向该目录 index.html
    ========================================================= */
 const GAMES = [
+  {
+    url: "./fourcolor/",
+    cat: "logic",
+    isNew: true,
+    level: { zh: "挑战", en: "Challenge" },
+    title: { zh: "四色地图", en: "Four-Color Map" },
+    desc: {
+      zh: "给每个地区上色，相邻不能同色。四色一定够；第 72 关起只给三种颜色，每关还要比均衡和速度。",
+      en: "Colour every region so neighbours differ. Four colours always suffice — from level 72 you get only three, with balance and speed scored."
+    },
+    tags: { zh: "逻辑推理 · 100 关", en: "Logic · 100 levels" }
+  },
+  {
+    url: "./glassball/",
+    cat: "logic",
+    isNew: true,
+    level: { zh: "挑战", en: "Challenge" },
+    title: { zh: "玻璃球消消乐", en: "Glass Ball Match" },
+    desc: {
+      zh: "玻璃球一颗颗落下，三个同色相连就消除，连锁还有额外加分。每 60 秒提速一档，看你能撑多久。",
+      en: "Balls drop one by one — connect three of a colour to clear them, and chains score extra. Every 60 seconds the pace picks up. How long can you last?"
+    },
+    tags: { zh: "空间规划 · 连锁计分", en: "Spatial planning · Chains" }
+  },
   {
     url: "./chili/",
     cat: "cognitive",
@@ -301,18 +327,6 @@ const GAMES = [
       en: "Does the current stimulus match the one two steps back? The heaviest load here."
     },
     tags: { zh: "更新记忆 · 速度", en: "Updating · Speed" }
-  },
-  {
-    url: "./fourcolor/",
-    cat: "logic",
-    isNew: true,
-    level: { zh: "挑战", en: "Challenge" },
-    title: { zh: "四色地图", en: "Four-Color Map" },
-    desc: {
-      zh: "给每个地区上色，相邻不能同色。四色一定够；第 72 关起只给三种颜色，每关还要比均衡和速度。",
-      en: "Colour every region so neighbours differ. Four colours always suffice — from level 72 you get only three, with balance and speed scored."
-    },
-    tags: { zh: "逻辑推理 · 100 关", en: "Logic · 100 levels" }
   },
   {
     url: "./eyesrelaxing/",
